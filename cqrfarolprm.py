@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MAESTRO QUÂNTICO v5.1 - O Oráculo Corrigido e Otimizado
+# MAESTRO QUÂNTICO v6.2 - A Sinfonia Completa e Unificada
 
 # --- Importações Essenciais ---
 import pandas as pd
@@ -9,6 +9,8 @@ import plotly.graph_objects as go
 import numpy as np
 import warnings
 import io
+import time
+import re
 
 try:
     import pyodbc
@@ -23,6 +25,7 @@ st.set_page_config(page_title="MAESTRO QUÂNTICO", page_icon="🌌", layout="wid
 
 # --- ESTILO CSS AVANÇADO ---
 st.markdown("""
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     html, body, [class*="st-"] { font-family: 'Poppins', sans-serif; }
@@ -34,20 +37,20 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         font-weight: 700;
     }
-    .data-panel { background: rgba(10, 8, 24, 0.8); border-radius: 15px; padding: 25px; border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 20px; }
+    .data-hologram { background: rgba(10, 8, 24, 0.8); border-radius: 20px; padding: 30px; border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 25px; box-shadow: 0 0 25px rgba(0, 191, 255, 0.1); }
     .narrative-box, .insight-card, .alert-card, .success-card { background: rgba(28, 28, 40, 0.7); border-radius: 15px; padding: 25px; border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 15px; }
     .narrative-box { border-left: 5px solid #8A2BE2; }
     .insight-card { border-left: 5px solid #FFD700; }
     .alert-card { border-left: 5px solid #FF4500; }
     .success-card { border-left: 5px solid #39FF14; }
+    .entity-box { background-color: rgba(0, 191, 255, 0.1); border: 1px solid #00BFFF; border-radius: 8px; padding: 10px; margin: 5px; text-align: center; }
 </style>
 """, unsafe_allow_html=True)
 
-# --- NÚCLEO DE CONEXÃO E EXTRAÇÃO DE DADOS ---
+# --- NÚCLEO COMPLETO-DATA ORCHESTRATOR ---
 class DataOrchestrator:
     def __init__(self):
         self.conn_str = self._get_conn_str()
-        # CORREÇÃO: Inserção da Query SQL completa que estava faltando.
         self.super_query = """
         SELECT
             g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
@@ -87,7 +90,7 @@ class DataOrchestrator:
                 return pd.read_sql(self.super_query, cnxn)
         except Exception: return None
 
-# --- MOTOR DE ANÁLISE QUÂNTICO v5.1 ---
+# --- NÚCLEO COMPLETO - QuantumAnalyticsEngine ---
 class QuantumAnalyticsEngine:
     def __init__(self):
         self.dados_originais = self._load_data()
@@ -157,12 +160,40 @@ class QuantumAnalyticsEngine:
         narrativa += f"**Prescrição:** Recomenda-se investigar os projetos de '{negocio_aumento if mudanca_mix else p2['Negocio_Projeto'].mode()[0]}' para replicar sucessos ou mitigar riscos."
         return narrativa
 
-# --- INICIALIZAÇÃO CORRIGIDA E COMPLETA ---
+# --- Classe para Processamento da O.S. POR VOZ ---
+class OSProcessor:
+    def __init__(self, data_engine):
+        self.consultores = sorted([''] + data_engine.dados_originais['Consultor'].unique().tolist())
+        self.clientes = sorted([''] + data_engine.dados_originais['Cliente'].unique().tolist())
+    
+    def parse_command(self, command):
+        command = command.lower()
+        parsed_data = {'consultor': None, 'cliente': None, 'horas': None, 'projeto': 'Não especificado'}
+        
+        horas_match = re.search(r'(\d+[\.,]?\d*)\s*h(oras)?', command)
+        if horas_match: parsed_data['horas'] = float(horas_match.group(1).replace(',', '.'))
+        
+        for consultor in self.consultores:
+            if consultor and consultor.lower() in command: parsed_data['consultor'] = consultor; break
+        
+        for cliente in self.clientes:
+            if cliente and cliente.lower() in command: parsed_data['cliente'] = cliente; break
+        
+        projeto_match = re.search(r'projeto (.+?)( para| do| com| na| cliente)', command)
+        if not projeto_match: projeto_match = re.search(r'projeto (.+)', command)
+        if projeto_match: parsed_data['projeto'] = projeto_match.group(1).strip().upper()
+            
+        return parsed_data
+
+# --- INICIALIZAÇÃO E GERENCIAMENTO DE ESTADO ---
 @st.cache_resource
 def init_engine(): return QuantumAnalyticsEngine()
 engine = init_engine()
+os_processor = OSProcessor(engine)
 
-# --- INTERFACE PRINCIPAL ---
+if 'spinner_text' not in st.session_state: st.session_state['spinner_text'] = "Processando Ressonância..."
+
+# --- UI PRINCIPAL ---
 st.markdown("<h1 style='text-align: center;'>MAESTRO QUÂNTICO</h1>", unsafe_allow_html=True)
 
 with st.sidebar:
@@ -175,59 +206,89 @@ with st.sidebar:
                'Consultor': st.multiselect("Consultor", ["TODOS"] + sorted(dados_disponiveis['Consultor'].unique()), default=["TODOS"])}
 df_filtrado = engine.aplicar_filtros(filters)
 
-tab_names = ["Visão Geral", "Análise Dimensional", "Consultores & Projetos", "Fechamento", "Comparativo", "Assistente IA"]
+tab_names = ["Visão Geral", "Análise Dimensional", "Consultores & Projetos", "Fechamento", "Comparativo", "Lançar O.S.", "Assistente IA"]
 tabs = st.tabs([f"**{name}**" for name in tab_names])
 
-with tabs[0]: # VISÃO GERAL
-    if df_filtrado.empty: st.warning("Nenhum dado para exibir.")
+with tabs[0]: # VISÃO HOLOGRÁFICA
+    st.markdown("### <i class='bi bi-infinity'></i> A Visão Consolidada", unsafe_allow_html=True)
+    if df_filtrado.empty: st.warning("Nenhum dado para exibir com os filtros atuais.")
     else:
-        st.markdown('<div class="data-panel">', unsafe_allow_html=True)
-        kpis = {'receita': df_filtrado['Receita_Total'].sum(), 'lucro': df_filtrado['Lucro_Total'].sum(), 'margem': df_filtrado[df_filtrado['Margem_Percentual'] > 0]['Margem_Percentual'].mean(), 'horas_r': df_filtrado['Horas_Realizadas'].sum(), 'horas_p': df_filtrado['Horas_Previstas'].sum()}
-        kpis['delta_h'] = kpis['horas_r'] - kpis['horas_p']
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Receita Total", f"R$ {kpis['receita']:,.0f}"); c2.metric("Lucro Total", f"R$ {kpis['lucro']:,.0f}")
-        c3.metric("Margem Média", f"{kpis['margem']:.1f}%")
-        c4.metric("Horas Realizadas", f"{kpis['horas_r']:.0f}h", f"{kpis['delta_h']:.0f}h vs. Orçado")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with st.container():
+            st.markdown('<div class="data-hologram">', unsafe_allow_html=True)
+            kpis = {'receita': df_filtrado['Receita_Total'].sum(), 'lucro': df_filtrado['Lucro_Total'].sum(),
+                    'margem': df_filtrado[df_filtrado['Margem_Percentual'] > 0]['Margem_Percentual'].mean(),
+                    'horas_r': df_filtrado['Horas_Realizadas'].sum(), 'horas_p': df_filtrado['Horas_Previstas'].sum()}
+            kpis['delta_h'] = kpis['horas_r'] - kpis['horas_p']
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Receita Total", f"R$ {kpis['receita']:,.0f}"); c2.metric("Lucro Total", f"R$ {kpis['lucro']:,.0f}")
+            c3.metric("Margem Média", f"{kpis['margem']:.1f}%")
+            c4.metric("Horas Realizadas", f"{kpis['horas_r']:.0f}h", f"{kpis['delta_h']:.0f}h vs. Orçado")
+            st.markdown('</div>', unsafe_allow_html=True)
 
 with tabs[1]: # ANÁLISE DIMENSIONAL
+    st.markdown("### <i class='bi bi-arrows-angle-expand'></i> Mapa de Calor de Performance", unsafe_allow_html=True)
     if not df_filtrado.empty and len(df_filtrado) > 1:
         heatmap_data = df_filtrado.pivot_table(index='Nivel_Consultor', columns='Negocio_Projeto', values='Margem_Percentual', aggfunc='mean').fillna(0)
         if not heatmap_data.empty: st.plotly_chart(px.imshow(heatmap_data, text_auto='.1f', aspect="auto"), use_container_width=True)
 
 with tabs[2]: # CONSULTORES E PROJETOS
+    st.markdown("### <i class='bi bi-people-fill'></i> Observatório de Performance", unsafe_allow_html=True)
     if not df_filtrado.empty:
         st.dataframe(df_filtrado[['Consultor', 'Nivel_Consultor', 'Projeto', 'Cliente', 'Receita_Total', 'Lucro_Total', 'Margem_Percentual']].style.format(formatter={'Receita_Total': 'R$ {:,.2f}', 'Lucro_Total': 'R$ {:,.2f}', 'Margem_Percentual': '{:.1f}%'}), use_container_width=True)
 
 with tabs[3]: # FECHAMENTO
+    st.markdown("### <i class='bi bi-calculator-fill'></i> Fechamento Financeiro", unsafe_allow_html=True)
     if not df_filtrado.empty:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("💰 A Pagar (Consultores)"); df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor'])['Custo_Total'].sum().reset_index().sort_values('Custo_Total', ascending=False)
+            st.subheader("💰 A Pagar (Consultores)"); df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor'])[['Custo_Total', 'Horas_Previstas', 'Horas_Realizadas']].sum().reset_index()
             st.dataframe(df_pagar.style.format(formatter={'Custo_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_pagar.to_excel(output, index=False, sheet_name='A_Pagar'); st.download_button("📥 Exportar (A Pagar)", output.getvalue(), "a_pagar.xlsx")
+            output = io.BytesIO(); df_pagar.to_excel(output, index=False); st.download_button("📥 Exportar (A Pagar)", output.getvalue(), "a_pagar.xlsx")
         with c2:
-            st.subheader("💳 A Receber (Clientes)"); df_receber = df_filtrado.groupby('Cliente')['Receita_Total'].sum().reset_index().sort_values('Receita_Total', ascending=False)
+            st.subheader("💳 A Receber (Clientes)"); df_receber = df_filtrado.groupby('Cliente')[['Receita_Total', 'Horas_Previstas', 'Horas_Realizadas']].sum().reset_index()
             st.dataframe(df_receber.style.format(formatter={'Receita_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_receber.to_excel(output, index=False, sheet_name='A_Receber'); st.download_button("📥 Exportar (A Receber)", output.getvalue(), "a_receber.xlsx")
+            output = io.BytesIO(); df_receber.to_excel(output, index=False); st.download_button("📥 Exportar (A Receber)", output.getvalue(), "a_receber.xlsx")
 
 with tabs[4]: # COMPARATIVO
-    st.header("Análise Comparativa com Diagnóstico IA")
+    st.markdown("### <i class='bi bi-subtract'></i> Análise Comparativa com Diagnóstico IA", unsafe_allow_html=True)
     anos = sorted(engine.dados_originais['Ano'].unique()); meses = sorted(engine.dados_originais['Mes'].unique())
     c1, c2 = st.columns(2)
     with c1: st.subheader("Período 1"); ano1 = st.selectbox("Ano 1", anos, key="ano1"); mes1 = st.selectbox("Mês 1", meses, key="mes1")
     with c2: st.subheader("Período 2"); ano2 = st.selectbox("Ano 2", anos, index=0, key="ano2"); mes2 = st.selectbox("Mês 2", meses, index=min(1, len(meses)-1), key="mes2")
-    p1 = engine.dados_originais[(engine.dados_originais['Ano']==ano1) & (engine.dados_originais['Mes']==mes1)]
-    p2 = engine.dados_originais[(engine.dados_originais['Ano']==ano2) & (engine.dados_originais['Mes']==mes2)]
-    if not p1.empty and not p2.empty:
-        st.markdown('<div class="narrative-box">', unsafe_allow_html=True); st.subheader("A História dos Dados (Análise do Maestro)")
-        with st.spinner("O Maestro está realizando a biópsia dos dados..."):
-            st.write(engine.diagnosticar_e_narrar_variacao(p1, p2, f"{mes1}/{ano1}", f"{mes2}/{ano2}"))
-        st.markdown('</div>', unsafe_allow_html=True)
-    else: st.warning("Um dos períodos selecionados não contém dados.")
+    if st.button("🔍 Calcular Ressonância", use_container_width=True):
+        p1 = engine.dados_originais[(engine.dados_originais['Ano']==ano1) & (engine.dados_originais['Mes']==mes1)]
+        p2 = engine.dados_originais[(engine.dados_originais['Ano']==ano2) & (engine.dados_originais['Mes']==mes2)]
+        if not p1.empty and not p2.empty:
+            st.markdown('<div class="narrative-box">', unsafe_allow_html=True)
+            st.subheader("A História dos Dados (Análise do Maestro)")
+            with st.spinner("O Maestro está realizando a biópsia dos dados..."):
+                time.sleep(1.5) # Efeito dramático
+                st.write(engine.diagnosticar_e_narrar_variacao(p1, p2, f"{mes1}/{ano1}", f"{mes2}/{ano2}"))
+            st.markdown('</div>', unsafe_allow_html=True)
+        else: st.warning("Um dos períodos selecionados não contém dados.")
 
-with tabs[5]: # ASSISTENTE IA
-    st.header("O Oráculo Preditivo")
+with tabs[5]: # LANÇAR O.S.
+    st.markdown("### <i class='bi bi-mic-fill'></i> O Ouvido do Maestro: Lançamento de O.S.", unsafe_allow_html=True)
+    st.write("Digite o comando como se estivesse falando. A IA irá extrair as informações-chave.")
+    
+    comando = st.text_input("Sua Intenção:", placeholder="Ex: Lançar 80 horas para Rafael Oliveira no projeto de PMO do cliente Autozone")
+    
+    if comando:
+        parsed = os_processor.parse_command(comando)
+        st.write("#### O Maestro entendeu:")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.markdown(f"<div class='entity-box'><b>Consultor:</b><br>{parsed['consultor'] or 'Não encontrado'}</div>", unsafe_allow_html=True)
+        with c2: st.markdown(f"<div class='entity-box'><b>Cliente:</b><br>{parsed['cliente'] or 'Não encontrado'}</div>", unsafe_allow_html=True)
+        with c3: st.markdown(f"<div class='entity-box'><b>Horas:</b><br>{parsed['horas'] or 'Não encontrado'}</div>", unsafe_allow_html=True)
+        with c4: st.markdown(f"<div class='entity-box'><b>Projeto:</b><br>{parsed['projeto']}</div>", unsafe_allow_html=True)
+        
+        if all(parsed.values()):
+            if st.button("🚀 Confirmar e Lançar O.S.", use_container_width=True, type="primary"):
+                st.success(f"O.S. de {parsed['horas']}h para {parsed['consultor']} no projeto {parsed['projeto']} do cliente {parsed['cliente']} lançada com sucesso!")
+                st.balloons()
+
+with tabs[6]: # ASSISTENTE IA
+    st.markdown("### <i class='bi bi-stars'></i> O Oráculo Preditivo", unsafe_allow_html=True)
     st.markdown('<div class="narrative-box">', unsafe_allow_html=True)
     st.subheader("💡 Feed de Prescrições Vivas")
     st.markdown(f"*Insights gerados a partir de **{len(df_filtrado)}** registros ressonantes...*")
