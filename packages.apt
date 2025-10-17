@@ -1,5 +1,4 @@
 curl
 gnupg
 unixodbc-dev
-msodbcsql18
-mssql-tools18
+msodbcsql17
