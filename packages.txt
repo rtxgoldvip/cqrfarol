@@ -1,3 +1,2 @@
 unixodbc-dev
-freetds-dev
-tdsodbc
+msodbcsql18
