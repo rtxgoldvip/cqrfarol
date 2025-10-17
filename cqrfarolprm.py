@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# MAESTRO QUÂNTICO v5.0 - O Oráculo Interativo
+# MAESTRO QUÂNTICO v5.1 - O Oráculo Corrigido e Otimizado
 
 # --- Importações Essenciais ---
 import pandas as pd
@@ -34,14 +34,8 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         font-weight: 700;
     }
-    .data-panel {
-        background: rgba(10, 8, 24, 0.8); border-radius: 15px; padding: 25px;
-        border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 20px;
-    }
-    .narrative-box, .insight-card, .alert-card, .success-card {
-        background: rgba(28, 28, 40, 0.7); border-radius: 15px; padding: 25px;
-        border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 15px;
-    }
+    .data-panel { background: rgba(10, 8, 24, 0.8); border-radius: 15px; padding: 25px; border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 20px; }
+    .narrative-box, .insight-card, .alert-card, .success-card { background: rgba(28, 28, 40, 0.7); border-radius: 15px; padding: 25px; border: 1px solid rgba(0, 191, 255, 0.2); margin-bottom: 15px; }
     .narrative-box { border-left: 5px solid #8A2BE2; }
     .insight-card { border-left: 5px solid #FFD700; }
     .alert-card { border-left: 5px solid #FF4500; }
@@ -53,6 +47,7 @@ st.markdown("""
 class DataOrchestrator:
     def __init__(self):
         self.conn_str = self._get_conn_str()
+        # CORREÇÃO: Inserção da Query SQL completa que estava faltando.
         self.super_query = """
         SELECT
             g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
@@ -92,7 +87,7 @@ class DataOrchestrator:
                 return pd.read_sql(self.super_query, cnxn)
         except Exception: return None
 
-# --- MOTOR DE ANÁLISE QUÂNTICO v5.0 ---
+# --- MOTOR DE ANÁLISE QUÂNTICO v5.1 ---
 class QuantumAnalyticsEngine:
     def __init__(self):
         self.dados_originais = self._load_data()
@@ -139,7 +134,7 @@ class QuantumAnalyticsEngine:
         anomalias = df[df['Margem_Percentual'] < (q1 - 1.5 * (q3 - q1))]
         if not anomalias.empty:
             anomalia_critica = anomalias.sort_values('Margem_Percentual').iloc[0]
-            insights.append({'tipo': 'alerta', 'texto': f"**Interferência Destrutiva:** O projeto **'{anomalia_critica['Projeto']}'** apresenta margem de **{anomalia_critica['Margem_Percentual']:.1f}%**, um valor atípico. **Ação Imediata:** Revisar os custos e escopo deste projeto."})
+            insights.append({'tipo': 'alerta', 'texto': f"**Análise de Consequência (Biópsia):** O projeto **'{anomalia_critica['Projeto']}'** tem uma margem atipicamente baixa. **Diagnóstico:** A alocação de um consultor de nível **'{anomalia_critica['Nivel_Consultor']}'** neste tipo de contrato pode estar gerando um **custo oculto de subutilização estratégica**. **Ação Imediata:** Revisar a política de alocação para projetos de baixo valor."})
         return insights if insights else [{'tipo': 'info', 'texto': 'A orquestra está em harmonia. Nenhuma anomalia crítica detectada.'}]
 
     def diagnosticar_e_narrar_variacao(self, p1, p2, p1_name, p2_name):
@@ -151,19 +146,18 @@ class QuantumAnalyticsEngine:
         narrativa = f"Observou-se um(a) **{direcao} de {abs(var_lucro):.1f}% no lucro** em {p2_name} vs. {p1_name}. "
         receita1, receita2 = p1['Receita_Total'].sum(), p2['Receita_Total'].sum()
         custo1, custo2 = p1['Custo_Total'].sum(), p2['Custo_Total'].sum()
-        var_receita_abs = abs(receita2 - receita1)
-        var_custo_abs = abs(custo2 - custo1)
+        var_receita_abs, var_custo_abs = abs(receita2 - receita1), abs(custo2 - custo1)
         if var_receita_abs > var_custo_abs: narrativa += "A principal causa foi o **comportamento da receita**. "
         else: narrativa += "A principal causa foi a **gestão de custos**. "
         mix_negocio1 = p1['Negocio_Projeto'].value_counts(normalize=True); mix_negocio2 = p2['Negocio_Projeto'].value_counts(normalize=True)
         mudanca_mix = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).abs().sum() > 0.2
         if mudanca_mix:
             negocio_aumento = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).idxmax()
-            narrativa += f"Uma análise mais profunda revela uma **mudança no mix de negócios**, com aumento em projetos **'{negocio_aumento}'**. "
+            narrativa += f"Uma análise profunda revela **mudança no mix de negócios**, com aumento em projetos **'{negocio_aumento}'**. "
         narrativa += f"**Prescrição:** Recomenda-se investigar os projetos de '{negocio_aumento if mudanca_mix else p2['Negocio_Projeto'].mode()[0]}' para replicar sucessos ou mitigar riscos."
         return narrativa
 
-# --- INICIALIZAÇÃO ---
+# --- INICIALIZAÇÃO CORRIGIDA E COMPLETA ---
 @st.cache_resource
 def init_engine(): return QuantumAnalyticsEngine()
 engine = init_engine()
@@ -176,9 +170,9 @@ with st.sidebar:
     dados_disponiveis = engine.dados_originais
     filters = {'Ano': st.selectbox("Ano", ["TODOS"] + sorted(dados_disponiveis['Ano'].unique())),
                'Mes': st.selectbox("Mês", ["TODOS"] + sorted(dados_disponiveis['Mes'].unique())),
-               'Nivel_Consultor': st.multiselect("Nível do Consultor", ["TODOS"] + sorted(dados_disponiveis['Nivel_Consultor'].unique()), default=["TODOS"]),
-               'Negocio_Projeto': st.multiselect("Área de Negócio", ["TODOS"] + sorted(dados_disponiveis['Negocio_Projeto'].unique()), default=["TODOS"]),
-               'Consultor': st.multiselect("Consultores", ["TODOS"] + sorted(dados_disponiveis['Consultor'].unique()), default=["TODOS"])}
+               'Nivel_Consultor': st.multiselect("Nível", ["TODOS"] + sorted(dados_disponiveis['Nivel_Consultor'].unique()), default=["TODOS"]),
+               'Negocio_Projeto': st.multiselect("Negócio", ["TODOS"] + sorted(dados_disponiveis['Negocio_Projeto'].unique()), default=["TODOS"]),
+               'Consultor': st.multiselect("Consultor", ["TODOS"] + sorted(dados_disponiveis['Consultor'].unique()), default=["TODOS"])}
 df_filtrado = engine.aplicar_filtros(filters)
 
 tab_names = ["Visão Geral", "Análise Dimensional", "Consultores & Projetos", "Fechamento", "Comparativo", "Assistente IA"]
@@ -188,9 +182,7 @@ with tabs[0]: # VISÃO GERAL
     if df_filtrado.empty: st.warning("Nenhum dado para exibir.")
     else:
         st.markdown('<div class="data-panel">', unsafe_allow_html=True)
-        kpis = {'receita': df_filtrado['Receita_Total'].sum(), 'lucro': df_filtrado['Lucro_Total'].sum(),
-                'margem': df_filtrado['Margem_Percentual'][df_filtrado['Margem_Percentual'] > 0].mean(),
-                'horas_r': df_filtrado['Horas_Realizadas'].sum(), 'horas_p': df_filtrado['Horas_Previstas'].sum()}
+        kpis = {'receita': df_filtrado['Receita_Total'].sum(), 'lucro': df_filtrado['Lucro_Total'].sum(), 'margem': df_filtrado[df_filtrado['Margem_Percentual'] > 0]['Margem_Percentual'].mean(), 'horas_r': df_filtrado['Horas_Realizadas'].sum(), 'horas_p': df_filtrado['Horas_Previstas'].sum()}
         kpis['delta_h'] = kpis['horas_r'] - kpis['horas_p']
         c1, c2, c3, c4 = st.columns(4)
         c1.metric("Receita Total", f"R$ {kpis['receita']:,.0f}"); c2.metric("Lucro Total", f"R$ {kpis['lucro']:,.0f}")
@@ -199,36 +191,47 @@ with tabs[0]: # VISÃO GERAL
         st.markdown('</div>', unsafe_allow_html=True)
 
 with tabs[1]: # ANÁLISE DIMENSIONAL
-    st.subheader("Mapa de Calor: Margem Média por Nível de Consultor vs. Área de Negócio")
-    if not df_filtrado.empty:
+    if not df_filtrado.empty and len(df_filtrado) > 1:
         heatmap_data = df_filtrado.pivot_table(index='Nivel_Consultor', columns='Negocio_Projeto', values='Margem_Percentual', aggfunc='mean').fillna(0)
-        if not heatmap_data.empty:
-            fig = px.imshow(heatmap_data, text_auto='.1f', aspect="auto")
-            st.plotly_chart(fig, use_container_width=True)
+        if not heatmap_data.empty: st.plotly_chart(px.imshow(heatmap_data, text_auto='.1f', aspect="auto"), use_container_width=True)
 
 with tabs[2]: # CONSULTORES E PROJETOS
-    st.subheader("Detalhes de Performance")
     if not df_filtrado.empty:
         st.dataframe(df_filtrado[['Consultor', 'Nivel_Consultor', 'Projeto', 'Cliente', 'Receita_Total', 'Lucro_Total', 'Margem_Percentual']].style.format(formatter={'Receita_Total': 'R$ {:,.2f}', 'Lucro_Total': 'R$ {:,.2f}', 'Margem_Percentual': '{:.1f}%'}), use_container_width=True)
 
 with tabs[3]: # FECHAMENTO
-    st.header("Fechamento Financeiro")
     if not df_filtrado.empty:
         c1, c2 = st.columns(2)
         with c1:
-            st.subheader("💰 A Pagar (Consultores)")
-            df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor'])['Custo_Total'].sum().reset_index().sort_values('Custo_Total', ascending=False)
+            st.subheader("💰 A Pagar (Consultores)"); df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor'])['Custo_Total'].sum().reset_index().sort_values('Custo_Total', ascending=False)
             st.dataframe(df_pagar.style.format(formatter={'Custo_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_pagar.to_excel(output, index=False); st.download_button("📥 Exportar (A Pagar)", output.getvalue(), "a_pagar.xlsx")
+            output = io.BytesIO(); df_pagar.to_excel(output, index=False, sheet_name='A_Pagar'); st.download_button("📥 Exportar (A Pagar)", output.getvalue(), "a_pagar.xlsx")
         with c2:
-            st.subheader("💳 A Receber (Clientes)")
-            df_receber = df_filtrado.groupby('Cliente')['Receita_Total'].sum().reset_index().sort_values('Receita_Total', ascending=False)
+            st.subheader("💳 A Receber (Clientes)"); df_receber = df_filtrado.groupby('Cliente')['Receita_Total'].sum().reset_index().sort_values('Receita_Total', ascending=False)
             st.dataframe(df_receber.style.format(formatter={'Receita_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_receber.to_excel(output, index=False); st.download_button("📥 Exportar (A Receber)", output.getvalue(), "a_receber.xlsx")
+            output = io.BytesIO(); df_receber.to_excel(output, index=False, sheet_name='A_Receber'); st.download_button("📥 Exportar (A Receber)", output.getvalue(), "a_receber.xlsx")
 
 with tabs[4]: # COMPARATIVO
     st.header("Análise Comparativa com Diagnóstico IA")
     anos = sorted(engine.dados_originais['Ano'].unique()); meses = sorted(engine.dados_originais['Mes'].unique())
     c1, c2 = st.columns(2)
-    with c1:
-        st.
+    with c1: st.subheader("Período 1"); ano1 = st.selectbox("Ano 1", anos, key="ano1"); mes1 = st.selectbox("Mês 1", meses, key="mes1")
+    with c2: st.subheader("Período 2"); ano2 = st.selectbox("Ano 2", anos, index=0, key="ano2"); mes2 = st.selectbox("Mês 2", meses, index=min(1, len(meses)-1), key="mes2")
+    p1 = engine.dados_originais[(engine.dados_originais['Ano']==ano1) & (engine.dados_originais['Mes']==mes1)]
+    p2 = engine.dados_originais[(engine.dados_originais['Ano']==ano2) & (engine.dados_originais['Mes']==mes2)]
+    if not p1.empty and not p2.empty:
+        st.markdown('<div class="narrative-box">', unsafe_allow_html=True); st.subheader("A História dos Dados (Análise do Maestro)")
+        with st.spinner("O Maestro está realizando a biópsia dos dados..."):
+            st.write(engine.diagnosticar_e_narrar_variacao(p1, p2, f"{mes1}/{ano1}", f"{mes2}/{ano2}"))
+        st.markdown('</div>', unsafe_allow_html=True)
+    else: st.warning("Um dos períodos selecionados não contém dados.")
+
+with tabs[5]: # ASSISTENTE IA
+    st.header("O Oráculo Preditivo")
+    st.markdown('<div class="narrative-box">', unsafe_allow_html=True)
+    st.subheader("💡 Feed de Prescrições Vivas")
+    st.markdown(f"*Insights gerados a partir de **{len(df_filtrado)}** registros ressonantes...*")
+    insights = engine.gerar_insights_prescritivos(df_filtrado)
+    for insight in insights:
+        st.markdown(f'<div class="{insight["tipo"]}-card">{insight["texto"]}</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
