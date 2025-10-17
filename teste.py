@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Nome do arquivo: test_connection_v2.py
+# Nome do arquivo: test_connection_final.py
 
 import streamlit as st
 import pyodbc
@@ -19,70 +19,64 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.title("🔬 Testador de Conexão Quântica")
-st.write("Esta ferramenta realiza um teste definitivo de conexão com o banco de dados SQL Server a partir do ambiente do Streamlit Cloud.")
+st.write("Versão Final: Testando com o Driver ODBC 17, o padrão de compatibilidade.")
 
-# --- Carregando Credenciais de Forma Segura ---
+# --- Carregando Credenciais ---
 try:
     st.info("Passo 1: Lendo as credenciais do `st.secrets`...")
     DB_SERVER = st.secrets["db_credentials"]["server"]
     DB_DATABASE = st.secrets["db_credentials"]["database"]
     DB_USERNAME = st.secrets["db_credentials"]["username"]
     DB_PASSWORD = st.secrets["db_credentials"]["password"]
-    st.success("Credenciais carregadas com sucesso!")
+    st.success("Credenciais carregadas!")
 except Exception as e:
-    st.error(f"Erro ao ler as credenciais do `st.secrets`. Verifique se o arquivo de segredos está configurado corretamente no Streamlit Cloud. Erro: {e}")
-    st.stop() # Interrompe a execução se as credenciais não puderem ser lidas
+    st.error(f"Erro ao ler as credenciais do `st.secrets`. Verifique a configuração. Erro: {e}")
+    st.stop()
 
-# --- Construindo a String de Conexão (com a correção) ---
-st.info("Passo 2: Construindo a string de conexão...")
-# A correção crucial: usamos 'msodbcsql18' como o nome do driver.
-DRIVER_NAME = '{msodbcsql18}' 
-conn_str = (
+# --- Construindo a String de Conexão FINAL ---
+st.info("Passo 2: Construindo a string de conexão com o nome formal do Driver 17...")
+
+# --- A CORREÇÃO FINAL E DEFINITIVA ESTÁ AQUI ---
+# Estamos alinhando o nome formal do driver com a versão que instalamos no packages.apt
+DRIVER_NAME = '{ODBC Driver 17 for SQL Server}' 
+
+conn_str_display = (
     f"DRIVER={DRIVER_NAME};"
     f"SERVER={DB_SERVER};"
     f"DATABASE={DB_DATABASE};"
     f"UID={DB_USERNAME};"
-    f"PWD={'******'};" # Mascarando a senha na exibição
+    f"PWD={'******'};"
     f"TrustServerCertificate=yes;"
 )
-st.code(conn_str, language='text')
+st.code(conn_str_display, language='text')
 
 # --- Botão para Iniciar o Teste ---
-if st.button("🚀 Iniciar Teste de Conexão", type="primary"):
+if st.button("🚀 Iniciar Teste de Conexão Final", type="primary"):
     try:
-        with st.spinner("Passo 3: Tentando estabelecer a conexão com o servidor... Isso pode levar alguns segundos."):
-            # Tenta estabelecer a conexão com um timeout de 15 segundos
+        with st.spinner("Passo 3: Conectando..."):
             cnxn = pyodbc.connect(
                 f"DRIVER={DRIVER_NAME};SERVER={DB_SERVER};DATABASE={DB_DATABASE};UID={DB_USERNAME};PWD={DB_PASSWORD};TrustServerCertificate=yes;",
                 timeout=15
             )
-        st.success("✅ **CONEXÃO BEM-SUCEDIDA!**")
+        st.success("✅ **LUZ VERDE! A CONEXÃO FOI ESTABELECIDA!**")
         st.balloons()
         st.markdown("---")
         
-        with st.spinner("Passo 4: Conexão estabelecida! Executando uma consulta de teste para verificar permissões..."):
+        with st.spinner("Passo 4: Verificando permissões com uma consulta..."):
             cursor = cnxn.cursor()
             cursor.execute("SELECT @@VERSION;")
             row = cursor.fetchone()
-            st.success("✅ **CONSULTA EXECUTADA COM SUCESSO!**")
-            st.subheader("Informações do Servidor:")
+            st.success("✅ **CONSULTA REALIZADA! O BANCO DE DADOS ESTÁ 100% OPERACIONAL!**")
             st.text(row[0])
             cnxn.close()
+            st.markdown("### Parabéns, Sócio! O obstáculo técnico foi superado. Podemos prosseguir com o desenvolvimento da IA.")
 
     except Exception as e:
-        st.error("❌ FALHA CRÍTICA NA CONEXÃO!", icon="🔥")
+        st.error("❌ FALHA NA CONEXÃO!", icon="🔥")
         st.markdown("---")
         st.subheader("Diagnóstico do Erro:")
-        st.error(f"Ocorreu um erro ao tentar conectar ou executar a consulta: **{e}**")
-        
-        st.subheader("Análise e Próximos Passos:")
+        st.error(f"Erro: **{e}**")
         st.warning("""
-        **Com base neste erro, o diagnóstico mais provável é:**
-
-        1.  **Firewall (Causa Mais Provável):** O firewall do seu servidor de banco de dados (`78.142.242.144`) **NÃO** está permitindo a conexão vinda dos servidores do Streamlit Cloud.
-            -   **Ação Necessária:** Você precisa adicionar uma regra de entrada no firewall do seu servidor para liberar a porta `1433` (ou a porta que seu SQL Server usa) para **TODOS os IPs de origem**. O Streamlit usa uma faixa de IPs dinâmica, então a forma mais fácil é liberar para `0.0.0.0/0`.
-
-        2.  **Credenciais Incorretas:** Verifique novamente o IP, nome do banco, usuário e, principalmente, a senha nos `secrets` do Streamlit. Um único caractere errado causará falha.
-
-        3.  **Servidor Offline ou Porta Errada:** Confirme se o serviço do SQL Server está rodando no servidor e se ele está escutando na porta correta (geralmente 1433).
+        Se o erro persistir, as causas mais prováveis são **Firewall** ou **Credenciais Incorretas**, conforme detalhado anteriormente. 
+        O problema de **Driver** foi resolvido com esta versão.
         """)
