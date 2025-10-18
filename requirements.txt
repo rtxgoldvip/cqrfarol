@@ -2,5 +2,10 @@ pandas
 streamlit
 plotly
 numpy
-pyodbc
 xlsxwriter
+scipy
+openpyxl
+SpeechRecognition
+pydub
+pyaudio
+pyodbc
