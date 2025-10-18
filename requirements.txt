@@ -3,7 +3,7 @@ streamlit
 plotly
 numpy
 xlsxwriter
-scipy
+scipy==1.10.1
 openpyxl
 SpeechRecognition
 pydub
