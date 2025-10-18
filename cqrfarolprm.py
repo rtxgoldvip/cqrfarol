@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-# MAESTRO QUÂNTICO v8.1 - Versão Corrigida
+# MAESTRO QUÂNTICO v7.0 - A Ressonância da Verdade
 
+# --- Importações Essenciais ---
 import pandas as pd
 import streamlit as st
 import plotly.express as px
@@ -9,10 +10,6 @@ import numpy as np
 import warnings
 import io
 import time
-import re
-from datetime import datetime, timedelta
-import json
-from io import BytesIO
 
 try:
     import pyodbc
@@ -22,437 +19,283 @@ except ImportError:
 
 warnings.filterwarnings('ignore')
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(
-    page_title="MAESTRO QUÂNTICO | Diagnóstico Dinâmico", 
-    page_icon="🌌", 
-    layout="wide", 
-    initial_sidebar_state="expanded"
-)
+# --- CONFIGURAÇÃO DA PÁGINA PREMIUM v7.0 ---
+st.set_page_config(page_title="MAESTRO QUÂNTICO v7", page_icon="🔮", layout="wide", initial_sidebar_state="expanded")
 
-# --- ESTILO CSS SIMPLIFICADO ---
+# --- ESTILO CSS PREMIUM E COESO v7.0 ---
 st.markdown("""
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <style>
-    .main {
-        background: linear-gradient(135deg, #0c0c2e 0%, #1a1a3e 50%, #0c0c2e 100%);
-        color: #ffffff;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
-    .header-glow {
-        background: linear-gradient(90deg, #0066ff 0%, #00ccff 100%);
+    :root {
+        --primary-color: #00BFFF; /* Deep Sky Blue */
+        --secondary-color: #8A2BE2; /* Blue Violet */
+        --background-color: #050818;
+        --surface-color: #10142B;
+        --text-color: #E0E0E0;
+        --text-muted-color: #A0A0B0;
+        --success-color: #39FF14; /* Neon Green */
+        --warning-color: #FFD700; /* Gold */
+        --danger-color: #FF4500; /* Orange Red */
+    }
+
+    html, body, [class*="st-"] { font-family: 'Poppins', sans-serif; color: var(--text-color); }
+    .main { background-color: var(--background-color); }
+    .stApp { background: radial-gradient(circle at top right, #1a1a2e 0%, var(--background-color) 50%); }
+
+    h1, h2, h3 {
+        background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        font-weight: 800;
-        text-align: center;
-        margin-bottom: 1.5rem;
-        font-size: 2.8rem;
+        font-weight: 700;
+    }
+
+    h3 i, h5 i, h6 i { 
+        font-size: 1.1em; 
+        margin-right: 12px; 
+        vertical-align: middle;
+        background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
-    .quantum-card {
-        background: rgba(20, 25, 60, 0.7);
-        border-radius: 16px;
-        padding: 24px;
-        border: 1px solid rgba(0, 204, 255, 0.2);
-        margin-bottom: 20px;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-    
-    .kpi-card {
-        background: rgba(15, 20, 45, 0.8);
-        border-radius: 12px;
+    /* --- Estilo dos Cards e Painéis --- */
+    .metric-card {
+        background: var(--surface-color);
+        border-radius: 15px;
         padding: 20px;
+        border: 1px solid rgba(0, 191, 255, 0.2);
+        border-left: 5px solid var(--primary-color);
+        box-shadow: 0 0 20px rgba(0, 191, 255, 0.1);
         text-align: center;
-        border: 1px solid rgba(0, 204, 255, 0.1);
+    }
+
+    .base-card {
+        background: rgba(28, 28, 40, 0.7);
+        border-radius: 15px;
+        padding: 25px;
+        border: 1px solid rgba(0, 191, 255, 0.2);
+        margin-bottom: 15px;
     }
     
-    .kpi-value {
-        font-size: 2rem;
-        font-weight: 800;
-        background: linear-gradient(90deg, #00ccff, #0066ff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        margin: 10px 0;
+    .narrative-box { border-left: 5px solid var(--secondary-color); }
+    .insight-card { border-left: 5px solid var(--warning-color); }
+    .alert-card { border-left: 5px solid var(--danger-color); }
+    .success-card { border-left: 5px solid var(--success-color); }
+
+    /* --- Estilo das Abas --- */
+    .stTabs [data-baseweb="tab-list"] { gap: 18px; }
+    .stTabs [data-baseweb="tab"] { 
+        height: 55px; 
+        background-color: transparent !important;
+        padding: 10px 20px; 
+        border-radius: 8px; 
+        border: 1px solid rgba(0, 191, 255, 0.1); 
+        transition: all 0.3s ease;
+        font-weight: 600;
     }
-    
-    .kpi-label {
-        font-size: 0.9rem;
-        color: #a0a0c0;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+    .stTabs [aria-selected="true"] { 
+        background: rgba(0, 191, 255, 0.1); 
+        border-bottom: 3px solid var(--primary-color); 
+        color: var(--primary-color);
     }
 </style>
 """, unsafe_allow_html=True)
 
-# --- NÚCLEO QUÂNTICO SIMPLIFICADO ---
-class QuantumAnalysisEngine:
+# --- NÚCLEO COMPLETO-DATA ORCHESTRATOR ---
+class DataOrchestrator:
+    # (Nenhuma alteração necessária aqui, a estrutura está sólida)
     def __init__(self):
-        self.dados_originais = self._carregar_dados_reais()
-        self.dados_filtrados = self.dados_originais.copy()
-        
-    def _carregar_dados_reais(self):
-        """Carrega dados do arquivo Excel fornecido"""
+        self.conn_str = self._get_conn_str()
+        self.super_query = """
+        SELECT
+            g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
+            g.QtHrOrc as Horas_Previstas, g.QtHrReal as Horas_Realizadas,
+            g.ReceitaReal as Receita_Total, g.CustoReal as Custo_Total,
+            g.PercMgReal as Margem_Percentual, tec.NomeTec as Consultor,
+            niv.DescNivel as Nivel_Consultor, p.DescProj as Projeto,
+            p.ObsProj as Projeto_Descricao, t.DescTipo as Tipo_Projeto,
+            neg.DescNeg as Negocio_Projeto, status.DescStatus as Status_Projeto,
+            resp.NomeResp as Responsavel_Projeto, cli.DescCli as Cliente
+        FROM Tb_GestorFin2 g
+        LEFT JOIN tb_Proj p ON g.ProjGest = p.AutNumProj LEFT JOIN tb_tec tec ON g.ConsultGest = tec.AutNumTec
+        LEFT JOIN tb_cli cli ON p.CodCliProj = cli.AutNumCli LEFT JOIN tb_tipoproj t ON p.TipoProj = t.AutNumTipo
+        LEFT JOIN tb_neg neg ON p.CodNegProj = neg.AutNumNeg LEFT JOIN tb_StatusProj status ON p.StatusProj = status.AutNumStatus
+        LEFT JOIN tb_respproj resp ON p.RespProj1 = resp.AutNumResp LEFT JOIN tb_amarradisc amarra ON tec.AutNumTec = amarra.CodTecAmar
+        LEFT JOIN tb_nivel niv ON amarra.Nivel = niv.AutNivel
+        WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOT NULL
+        GROUP BY
+            g.IdGest2, g.Mes, g.Ano, g.QtHrOrc, g.QtHrReal, g.ReceitaReal, g.CustoReal, g.PercMgReal,
+            tec.NomeTec, niv.DescNivel, p.DescProj, p.ObsProj, t.DescTipo, neg.DescNeg, status.DescStatus, resp.NomeResp, cli.DescCli;
+        """
+
+    def _get_conn_str(self):
         try:
-            df = pd.read_excel('dados_maestro_extraidos.xlsx', sheet_name='DadosMaestro')
-            return self._processar_dados_avancado(df)
-        except Exception as e:
-            st.error(f"Erro ao carregar dados: {e}")
-            return self._criar_dados_demonstracao()
-    
-    def _processar_dados_avancado(self, df):
-        """Processamento avançado dos dados"""
+            return (f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                    f"SERVER={st.secrets['db_credentials']['server']};"
+                    f"DATABASE={st.secrets['db_credentials']['database']};"
+                    f"UID={st.secrets['db_credentials']['username']};"
+                    f"PWD={st.secrets['db_credentials']['password']};"
+                    f"TrustServerCertificate=yes;")
+        except (KeyError, FileNotFoundError): return None
+
+    def get_data(self):
+        if not PYODBC_AVAILABLE or not self.conn_str: return None
+        try:
+            with pyodbc.connect(self.conn_str, timeout=10) as cnxn:
+                return pd.read_sql(self.super_query, cnxn)
+        except Exception: return None
+
+# --- NÚCLEO COMPLETO - QuantumAnalyticsEngine v7.0 ---
+class QuantumAnalyticsEngine:
+    def __init__(self):
+        self.dados_originais = self._load_data()
+        self.dados_filtrados = self.dados_originais.copy()
+
+    def _load_data(self):
+        orchestrator = DataOrchestrator()
+        df = orchestrator.get_data()
+        if df is not None and not df.empty:
+            st.sidebar.success(f"Conectado! {len(df)} registros ressonantes.", icon="✅")
+            return self._processar_dados(df)
+        st.toast("Usando dados de simulação interna.", icon="🔬")
+        return self._processar_dados(self._create_mock_data())
+
+    def _processar_dados(self, df):
         numeric_cols = ['Horas_Previstas', 'Horas_Realizadas', 'Receita_Total', 'Custo_Total', 'Margem_Percentual']
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        
-        # Métricas avançadas
+        for col in numeric_cols: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         df['Lucro_Total'] = df['Receita_Total'] - df['Custo_Total']
-        df['Eficiencia_Horas'] = np.where(
-            df['Horas_Previstas'] > 0, 
-            df['Horas_Realizadas'] / df['Horas_Previstas'], 
-            1
-        )
-        df['Ticket_Medio_Hora'] = np.where(
-            df['Horas_Realizadas'] > 0,
-            df['Receita_Total'] / df['Horas_Realizadas'],
-            0
-        )
-        
-        # Preencher valores ausentes
-        for col in ['Nivel_Consultor', 'Negocio_Projeto', 'Status_Projeto', 'Consultor']:
+        df['Sobra_Horas'] = df['Horas_Previstas'] - df['Horas_Realizadas']
+        df['Eficiencia_Percentual'] = np.where(df['Horas_Previstas'] > 0, (df['Sobra_Horas'] / df['Horas_Previstas']) * 100, 0)
+
+        for col in ['Nivel_Consultor', 'Negocio_Projeto', 'Status_Projeto']:
             df[col] = df[col].fillna('Não Definido')
-            
-        return df
-    
-    def _criar_dados_demonstracao(self):
-        """Cria dados de demonstração"""
-        st.warning("🔬 Modo de Demonstração Ativo")
-        meses = list(range(1, 13))
-        data = []
         
-        for mes in meses:
-            for _ in range(15):
-                data.append({
-                    'Mes': mes, 'Ano': 2024,
-                    'Consultor': np.random.choice(['ADRIANO AFONSO', 'ALYNE CAMPOS', 'AUGUSTO KREJCI', 'CLEBER NEVES']),
-                    'Nivel_Consultor': np.random.choice(['SENIOR', 'ESPECIALISTA']),
-                    'Cliente': 'TOTVS IP',
-                    'Projeto': 'ALOCAÇÃO DE RECURSOS',
-                    'Negocio_Projeto': 'OUTSOURCING - LOCAÇÃO',
-                    'Status_Projeto': 'EM ABERTO',
-                    'Horas_Previstas': abs(np.random.normal(120, 30)),
-                    'Horas_Realizadas': abs(np.random.normal(125, 35)),
-                    'Receita_Total': abs(np.random.normal(15000, 4000)),
-                    'Custo_Total': abs(np.random.normal(9000, 2000)),
-                    'Margem_Percentual': np.random.normal(0.35, 0.1)
-                })
+        # --- CÁLCULO DO ÍNDICE DE TENSÃO DE ALOCAÇÃO v7.0 ---
+        # Este índice substitui a métrica falha de "burnout".
+        # Ele mede a complexidade da alocação, não o esforço.
+        df_tensao = df.groupby(['Ano', 'Mes', 'Consultor']).agg(
+            dispersao_foco=('Projeto', 'nunique'),          # Quantos projetos diferentes?
+            complexidade_mix=('Negocio_Projeto', 'nunique') # Quantos tipos de negócio diferentes?
+        ).reset_index()
         
-        df = pd.DataFrame(data)
-        df['Lucro_Total'] = df['Receita_Total'] - df['Custo_Total']
+        # Normaliza os valores para criar um índice de 0 a 10
+        df_tensao['dispersao_norm'] = (df_tensao['dispersao_foco'] / df_tensao['dispersao_foco'].max()) * 5
+        df_tensao['complexidade_norm'] = (df_tensao['complexidade_mix'] / df_tensao['complexidade_mix'].max()) * 5
+        df_tensao['Indice_Tensao_Alocacao'] = df_tensao['dispersao_norm'] + df_tensao['complexidade_norm']
+        
+        df = pd.merge(df, df_tensao[['Ano', 'Mes', 'Consultor', 'Indice_Tensao_Alocacao']], on=['Ano', 'Mes', 'Consultor'], how='left')
         return df
-    
+
+    def _create_mock_data(self):
+        data = { 'Mes': [1, 1, 1, 2, 2, 3], 'Ano': [2025]*6, 'Consultor': ['RAFAEL OLIVEIRA', 'CLEBER NEVES', 'ADRIANO AFONSO', 'RAFAEL OLIVEIRA', 'RAFAEL OLIVEIRA', 'CLEBER NEVES'], 'Nivel_Consultor': ['SÊNIOR', 'PLENO', 'ESPECIALISTA', 'SÊNIOR', 'SÊNIOR', 'PLENO'], 'Cliente': ['AUTOZONE', 'TOTVS NOROESTE', 'HYDAC', 'TBC', 'TBC', 'HYDAC'], 'Projeto': ['ALOCAÇÃO PMO', 'BODY SHOP', 'IMPLANTAÇÃO FISCAL', 'BODY SHOP', 'SUPORTE AVANÇADO', 'SUPORTE FECHADO'], 'Negocio_Projeto': ['OUTSOURCING - LOCAÇÃO', 'OUTSOURCING - LOCAÇÃO', 'PROJETOS', 'OUTSOURCING - LOCAÇÃO', 'PROJETOS', 'PROJETOS'], 'Status_Projeto': ['EM ABERTO', 'FATURADO', 'EM ABERTO', 'FATURADO', 'EM ABERTO', 'FATURADO'], 'Horas_Previstas': [160, 160, 100, 80, 40, 50], 'Horas_Realizadas': [170, 160, 125, 75, 35, 55], 'Receita_Total': [26800, 18400, 25000, 10450, 5500, 6000], 'Custo_Total': [16800, 9600, 15000, 5225, 2750, 3300], 'Margem_Percentual': [37.3, 47.8, 40.0, 50.0, 50.0, 45.0]}
+        return pd.DataFrame(data)
+
     def aplicar_filtros(self, filters):
-        """Aplica filtros aos dados"""
         df = self.dados_originais.copy()
-        
         for key, value in filters.items():
             if value and value != "TODOS" and value != ["TODOS"]:
-                if isinstance(value, list):
-                    df = df[df[key].isin(value)]
-                else:
-                    df = df[df[key] == value]
-        
+                if isinstance(value, list): df = df[df[key].isin(value)]
+                else: df = df[df[key] == value]
         self.dados_filtrados = df
         return df
-    
-    def executar_diagnostico_quantico(self, df):
-        """Executa diagnóstico quântico completo"""
-        diagnosticos = []
-        alertas = []
-        
-        if df.empty:
-            return diagnosticos, alertas
-        
-        # ANÁLISE DE MARGENS
-        margens_negativas = df[df['Margem_Percentual'] < 0]
-        if not margens_negativas.empty:
-            perda_total = margens_negativas['Lucro_Total'].sum()
-            alertas.append({
-                'nivel': 'CRITICO',
-                'titulo': 'MARGENS NEGATIVAS DETECTADAS',
-                'descricao': f'{len(margens_negativas)} projetos com margem negativa',
-                'impacto': f'Perda: R$ {abs(perda_total):,.0f}',
-                'acao_imediata': 'Revisar custos e renegociar contratos'
-            })
-        
-        # ANÁLISE DE CONCENTRAÇÃO
-        top_cliente_receita = df.groupby('Cliente')['Receita_Total'].sum().nlargest(1)
-        concentracao = top_cliente_receita.iloc[0] / df['Receita_Total'].sum()
-        
-        if concentracao > 0.4:
-            alertas.append({
-                'nivel': 'ALTO',
-                'titulo': 'CONCENTRAÇÃO DE RISCO',
-                'descricao': f'{top_cliente_receita.index[0]} representa {concentracao:.1%} da receita',
-                'impacto': 'Risco operacional elevado',
-                'acao_imediata': 'Diversificar portfólio de clientes'
-            })
-        
-        # ANÁLISE DE EFICIÊNCIA
-        eficiencia_media = df['Eficiencia_Horas'].mean()
-        if eficiencia_media > 1.2:
-            diagnosticos.append({
-                'tipo': 'OPERACIONAL',
-                'titulo': 'SUPERALOCAÇÃO DE HORAS',
-                'descricao': f'Eficiência média de {eficiencia_media:.2f}x - horas realizadas excedem as previstas',
-                'prescricao': 'Implementar controle rigoroso de escopo'
-            })
-        elif eficiencia_media < 0.8:
-            diagnosticos.append({
-                'tipo': 'OPERACIONAL', 
-                'titulo': 'SUBUTILIZAÇÃO DE RECURSOS',
-                'descricao': f'Eficiência média de {eficiencia_media:.2f}x - capacidade ociosa detectada',
-                'prescricao': 'Otimizar alocação e buscar novos projetos'
-            })
-        
-        return diagnosticos, alertas
-    
-    def _calcular_metricas_chave(self, df):
-        """Calcula métricas-chave para dashboard"""
-        return {
-            'receita_total': df['Receita_Total'].sum(),
-            'lucro_total': df['Lucro_Total'].sum(),
-            'margem_media': df['Margem_Percentual'].mean(),
-            'eficiencia_media': df['Eficiencia_Horas'].mean(),
-            'ticket_medio': df['Ticket_Medio_Hora'].mean(),
-            'projetos_ativos': len(df),
-            'clientes_ativos': df['Cliente'].nunique()
-        }
 
-# --- SISTEMA DE COMANDO SIMPLIFICADO ---
-class VoiceCommandSystem:
-    def __init__(self):
-        self.commands = {
-            'lançar horas': self.lancar_horas,
-            'novo projeto': self.novo_projeto,
-            'status geral': self.status_geral
-        }
-    
-    def processar_comando(self, comando):
-        comando = comando.lower()
-        for cmd, funcao in self.commands.items():
-            if cmd in comando:
-                return funcao(comando)
-        return "Comando não reconhecido"
-    
-    def lancar_horas(self, comando):
-        return "Sistema de lançamento de horas ativado"
-    
-    def novo_projeto(self, comando):
-        return "Criando novo projeto..."
-    
-    def status_geral(self, comando):
-        return "Gerando relatório de status geral..."
+    def _format_text_for_html(self, text):
+        return text.replace("**", "<b>").replace("</b>", "</b>", 1).replace("</b>", "</b>")
 
-# --- INICIALIZAÇÃO DO SISTEMA ---
+    def gerar_insights_prescritivos(self, df):
+        if df.empty or len(df) < 3: return [{'tipo': 'insight', 'texto': 'Dados insuficientes para gerar insights. Altere os filtros.'}]
+        insights = []
+        tensao_alta = df[df['Indice_Tensao_Alocacao'] > 7.5]
+        if not tensao_alta.empty:
+            consultor_tensao = tensao_alta.sort_values('Indice_Tensao_Alocacao', ascending=False).iloc[0]
+            insights.append({'tipo': 'alert', 'texto': f"**Alerta de Tensão de Alocação:** O consultor **'{consultor_tensao['Consultor']}'** apresenta um índice de tensão de **{consultor_tensao['Indice_Tensao_Alocacao']:.1f}/10**. **Diagnóstico:** A alta dispersão de projetos e complexidade de negócios pode levar a erros ou queda na qualidade. **Prescrição:** Avaliar a consolidação de suas tarefas ou a designação de um único tipo de negócio para o próximo ciclo."})
+        
+        projetos_ineficientes = df[df['Eficiencia_Percentual'] < -20] # Projetos que estouraram mais de 20% das horas
+        if not projetos_ineficientes.empty:
+            proj_ineficiente = projetos_ineficientes.sort_values('Eficiencia_Percentual').iloc[0]
+            insights.append({'tipo': 'insight', 'texto': f"**Vazamento de Valor Detectado:** O projeto **'{proj_ineficiente['Projeto']}'** consumiu **{-proj_ineficiente['Eficiencia_Percentual']:.0f}%** mais horas que o previsto. **Diagnóstico:** Esta é uma assinatura clássica de 'scope creep' ou estimativa inicial falha. **Prescrição:** Realizar uma biópsia neste projeto para entender a causa raiz e ajustar o processo de orçamentação para contratos similares."})
+        
+        return insights if insights else [{'tipo': 'success', 'texto': 'A orquestra está em perfeita harmonia. Nenhuma dissonância crítica detectada nos filtros atuais.'}]
+
+    def diagnosticar_e_narrar_variacao(self, p1, p2, p1_name, p2_name):
+        # (Lógica mantida, pois é robusta e eficaz)
+        if p1.empty or p2.empty: return "Dados insuficientes em um dos períodos para gerar uma narrativa."
+        lucro1, lucro2 = p1['Lucro_Total'].sum(), p2['Lucro_Total'].sum()
+        var_lucro = ((lucro2 - lucro1) / abs(lucro1)) * 100 if lucro1 != 0 else float('inf')
+        if abs(var_lucro) < 2: return f"Performance de lucro estável entre os períodos (variação de {var_lucro:.1f}%)."
+        direcao = "aumento" if var_lucro > 0 else "redução"
+        narrativa = f"Observou-se um(a) **{direcao} de {abs(var_lucro):.1f}% no lucro** em {p2_name} vs. {p1_name}. "
+        receita1, receita2 = p1['Receita_Total'].sum(), p2['Receita_Total'].sum()
+        custo1, custo2 = p1['Custo_Total'].sum(), p2['Custo_Total'].sum()
+        var_receita_abs, var_custo_abs = abs(receita2 - receita1), abs(custo2 - custo1)
+        if var_receita_abs > var_custo_abs: narrativa += "O principal vetor de mudança foi o **comportamento da receita**. "
+        else: narrativa += "O principal vetor de mudança foi a **gestão de custos**. "
+        mix_negocio1 = p1['Negocio_Projeto'].value_counts(normalize=True); mix_negocio2 = p2['Negocio_Projeto'].value_counts(normalize=True)
+        mudanca_mix = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).abs().sum() > 0.2
+        if mudanca_mix:
+            negocio_aumento = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).idxmax()
+            narrativa += f"Uma análise profunda revela **uma reconfiguração no mix de negócios**, com aumento da relevância de projetos **'{negocio_aumento}'**. "
+        narrativa += f"**Prescrição:** Recomenda-se uma imersão nos projetos de '{negocio_aumento if mudanca_mix else p2['Negocio_Projeto'].mode()[0]}' para replicar padrões de sucesso ou mitigar riscos sistêmicos."
+        return narrativa
+    
+    def analisar_os(self, texto_os):
+        if not texto_os.strip(): return "O texto da O.S. está vazio."
+        # Simulação de uma análise de PNL (Processamento de Linguagem Natural)
+        sentimento = "Neutro"
+        if any(keyword in texto_os.lower() for keyword in ["urgente", "problema", "não funciona", "parado"]): sentimento = "Negativo/Urgente"
+        elif any(keyword in texto_os.lower() for keyword in ["obrigado", "resolvido", "ótimo"]): sentimento = "Positivo"
+        
+        palavras = texto_os.split()
+        ambiguidade = "Baixa"
+        if len(palavras) < 5 or any(keyword in texto_os.lower() for keyword in ["ajuste", "verificar", "coisinha"]):
+            ambiguidade = "Alta"
+
+        return f"**Sentimento Detectado:** {sentimento}. **Nível de Ambiguidade:** {ambiguidade}. **Prescrição:** Se a ambiguidade for alta, solicite ao cliente uma clarificação explícita do resultado esperado antes de iniciar a execução para evitar retrabalho."
+
+# --- INICIALIZAÇÃO E GERENCIAMENTO DE ESTADO ---
 @st.cache_resource
-def init_quantum_engine():
-    return QuantumAnalysisEngine()
+def init_engine(): return QuantumAnalyticsEngine()
+engine = init_engine()
 
-@st.cache_resource
-def init_voice_system():
-    return VoiceCommandSystem()
+# --- UI PRINCIPAL v7.0 ---
+st.markdown("<h1 style='text-align: center; margin-bottom: 20px;'>MAESTRO QUÂNTICO</h1>", unsafe_allow_html=True)
 
-engine = init_quantum_engine()
-voice_system = init_voice_system()
-
-# --- INTERFACE PRINCIPAL ---
-st.markdown("<h1 class='header-glow'>MAESTRO QUÂNTICO v8.1</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #a0a0c0;'>Sistema de Diagnóstico Empresarial</p>", unsafe_allow_html=True)
-
-# --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("### 🎛️ Controles")
-    
-    dados = engine.dados_originais
-    filters = {
-        'Ano': st.selectbox("**Ano**", ["TODOS"] + sorted(dados['Ano'].unique())),
-        'Mes': st.selectbox("**Mês**", ["TODOS"] + sorted(dados['Mes'].unique())),
-        'Nivel_Consultor': st.multiselect("**Nível**", 
-                                         ["TODOS"] + sorted(dados['Nivel_Consultor'].unique()),
-                                         default=["TODOS"]),
-        'Negocio_Projeto': st.multiselect("**Negócio**", 
-                                         ["TODOS"] + sorted(dados['Negocio_Projeto'].unique()),
-                                         default=["TODOS"])
-    }
-    
-    df_filtrado = engine.aplicar_filtros(filters)
-    
-    st.markdown("---")
-    st.markdown("### 📊 Resumo")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric("Projetos", len(df_filtrado))
-        st.metric("Receita", f"R$ {df_filtrado['Receita_Total'].sum():,.0f}")
-    with col2:
-        st.metric("Margem", f"{df_filtrado['Margem_Percentual'].mean():.1%}")
-        st.metric("Eficiência", f"{df_filtrado['Eficiencia_Horas'].mean():.2f}x")
+    st.markdown("## 🔮 Controles da Orquestra")
+    dados_disponiveis = engine.dados_originais
+    filters = {'Ano': st.selectbox("Ano", ["TODOS"] + sorted(dados_disponiveis['Ano'].unique())),
+               'Mes': st.selectbox("Mês", ["TODOS"] + sorted(dados_disponiveis['Mes'].unique())),
+               'Nivel_Consultor': st.multiselect("Nível do Consultor", ["TODOS"] + sorted(dados_disponiveis['Nivel_Consultor'].unique()), default=["TODOS"]),
+               'Negocio_Projeto': st.multiselect("Tipo de Negócio", ["TODOS"] + sorted(dados_disponiveis['Negocio_Projeto'].unique()), default=["TODOS"]),
+               'Consultor': st.multiselect("Consultor", ["TODOS"] + sorted(dados_disponiveis['Consultor'].unique()), default=["TODOS"])}
+df_filtrado = engine.aplicar_filtros(filters)
 
-# --- EXECUTAR DIAGNÓSTICO ---
-diagnosticos, alertas = engine.executar_diagnostico_quantico(df_filtrado)
+# --- Definição das Abas com Ícones e Nomes Robustos v7.0 ---
+tab_icons = ["bi-grid-1x2-fill", "bi-gem", "bi-people-fill", "bi-bounding-box", "bi-bank", "bi-arrows-collapse-vertical", "bi-lightbulb-fill", "bi-cpu-fill"]
+tab_names = ["Painel de Comando", "Matriz de Valor", "Ecossistema de Talentos", "Pulso Operacional (O.S.)", "Fluxo de Caixa", "Análise Delta", "Oráculo Prescritivo", "Projetor de Futuros"]
+tabs = st.tabs([f"<i class='{icon}'></i> {name}" for icon, name in zip(tab_icons, tab_names)])
 
-# --- ABAS PRINCIPAIS ---
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Painel", "🔍 Diagnóstico", "💰 Fechamento", "🎤 Comandos"])
-
-with tab1:
-    st.markdown("### 📊 Painel de Controle")
-    
-    # KPIs
-    col1, col2, col3, col4 = st.columns(4)
-    metricas = engine._calcular_metricas_chave(df_filtrado)
-    
-    with col1:
-        st.markdown("<div class='kpi-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='kpi-label'>RECEITA TOTAL</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='kpi-value'>R$ {metricas['receita_total']:,.0f}</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("<div class='kpi-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='kpi-label'>LUCRO TOTAL</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='kpi-value'>R$ {metricas['lucro_total']:,.0f}</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col3:
-        st.markdown("<div class='kpi-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='kpi-label'>MARGEM MÉDIA</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='kpi-value'>{metricas['margem_media']:.1%}</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col4:
-        st.markdown("<div class='kpi-card'>", unsafe_allow_html=True)
-        st.markdown("<div class='kpi-label'>PROJETOS ATIVOS</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='kpi-value'>{metricas['projetos_ativos']}</div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # Gráficos
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("<div class='quantum-card'>", unsafe_allow_html=True)
-        st.markdown("**📈 Evolução Mensal**")
-        evolucao_mensal = df_filtrado.groupby('Mes').agg({
-            'Receita_Total': 'sum',
-            'Lucro_Total': 'sum'
-        }).reset_index()
+# --- ABA 1: PAINEL DE COMANDO QUÂNTICO ---
+with tabs[0]:
+    st.markdown("### <i class='bi bi-broadcast'></i> A Visão Consolidada", unsafe_allow_html=True)
+    if df_filtrado.empty: st.warning("Nenhum dado para exibir com os filtros atuais.")
+    else:
+        kpis = {
+            'receita': df_filtrado['Receita_Total'].sum(), 
+            'lucro': df_filtrado['Lucro_Total'].sum(), 
+            'margem': df_filtrado['Margem_Percentual'].mean() if not df_filtrado['Margem_Percentual'].empty else 0,
+            'eficiencia_media': df_filtrado['Eficiencia_Percentual'].mean()
+        }
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.markdown(f'<div class="metric-card"><h5>Receita Total</h5><h2>R$ {kpis["receita"]:,.0f}</h2></div>', unsafe_allow_html=True)
+        with c2: st.markdown(f'<div class="metric-card"><h5>Lucro Total</h5><h2>R$ {kpis["lucro"]:,.0f}</h2></div>', unsafe_allow_html=True)
+        with c3: st.markdown(f'<div class="metric-card"><h5>Margem Média</h5><h2>{kpis["margem"]:.1f}%</h2></div>', unsafe_allow_html=True)
+        with c4: st.markdown(f'<div class="metric-card"><h5>Eficiência Média</h5><h2>{kpis["eficiencia_media"]:.1f}%</h2><p>vs. Orçado</p></div>', unsafe_allow_html=True)
         
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=evolucao_mensal['Mes'], y=evolucao_mensal['Receita_Total'], 
-                               name='Receita', line=dict(color='#00ccff', width=3)))
-        fig.add_trace(go.Scatter(x=evolucao_mensal['Mes'], y=evolucao_mensal['Lucro_Total'], 
-                               name='Lucro', line=dict(color='#00ff88', width=3)))
-        
-        fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font_color='white'
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("<div class='quantum-card'>", unsafe_allow_html=True)
-        st.markdown("**🎯 Performance por Nível**")
-        perf_nivel = df_filtrado.groupby('Nivel_Consultor').agg({
-            'Margem_Percentual': 'mean',
-            'Ticket_Medio_Hora': 'mean'
-        }).reset_index()
-        
-        fig = px.bar(perf_nivel, x='Nivel_Consultor', y='Margem_Percentual', 
-                    color='Ticket_Medio_Hora', color_continuous_scale='viridis')
-        fig.update_layout(
-            plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)',
-            font_color='white'
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-with tab2:
-    st.markdown("### 🔍 Diagnóstico Detalhado")
-    
-    if alertas:
-        st.markdown("#### ⚠️ Alertas Críticos")
-        for alerta in alertas:
-            st.markdown(f"<div class='quantum-card'>", unsafe_allow_html=True)
-            st.markdown(f"**{alerta['titulo']}** · 🔴 **{alerta['nivel']}**")
-            st.markdown(f"{alerta['descricao']}")
-            st.markdown(f"**Impacto:** {alerta['impacto']}")
-            st.markdown(f"**Ação Imediata:** {alerta['acao_imediata']}")
-            st.markdown("</div>", unsafe_allow_html=True)
-    
-    if diagnosticos:
-        st.markdown("#### 📋 Diagnósticos")
-        for diagnostico in diagnosticos:
-            st.markdown(f"<div class='quantum-card'>", unsafe_allow_html=True)
-            st.markdown(f"**{diagnostico['titulo']}**")
-            st.markdown(f"{diagnostico['descricao']}")
-            st.markdown(f"**Prescrição:** {diagnostico['prescricao']}")
-            st.markdown("</div>", unsafe_allow_html=True)
-
-with tab3:
-    st.markdown("### 💰 Fechamento Financeiro")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("<div class='quantum-card'>", unsafe_allow_html=True)
-        st.markdown("**💰 A Pagar (Consultores)**")
-        df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor']).agg({
-            'Custo_Total': 'sum',
-            'Horas_Realizadas': 'sum'
-        }).round(2).reset_index()
-        
-        st.dataframe(
-            df_pagar.style.format({
-                'Custo_Total': 'R$ {:.2f}'
-            }),
-            use_container_width=True
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    with col2:
-        st.markdown("<div class='quantum-card'>", unsafe_allow_html=True)
-        st.markdown("**💳 A Receber (Clientes)**")
-        df_receber = df_filtrado.groupby('Cliente').agg({
-            'Receita_Total': 'sum',
-            'Horas_Realizadas': 'sum'
-        }).round(2).reset_index()
-        
-        st.dataframe(
-            df_receber.style.format({
-                'Receita_Total': 'R$ {:.2f}'
-            }),
-            use_container_width=True
-        )
-        st.markdown("</div>", unsafe_allow_html=True)
-
-with tab4:
-    st.markdown("### 🎤 Sistema de Comandos")
-    
-    st.markdown("<div class='quantum-card'>", unsafe_allow_html=True)
-    st.markdown("**💬 Comandos Disponíveis:**")
-    st.markdown("- `lançar horas` - Iniciar lançamento de horas")
-    st.markdown("- `novo projeto` - Criar novo projeto")
-    st.markdown("- `status geral` - Ver status geral")
-    
-    comando = st.text_input("Digite seu comando:", placeholder="Ex: 'lançar horas'")
-    
-    if st.button("Executar Comando", width='stretch'):
-        if comando:
-            resultado = voice_system.processar_comando(comando)
-            st.success(f"**Resultado:** {resultado}")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-# --- RODAPÉ ---
-st.markdown("---")
-st.markdown("<div style='text-align: center; color: #666;'>MAESTRO QUÂNTICO v8.1 · Sistema Corrigido</div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("<h6><i class='bi bi-pie-chart-fill'></i> Lucratividade por Tipo de Negócio</h6>", unsafe_allow_html=True)
+            lucro_negocio = df_filtrado.groupby
