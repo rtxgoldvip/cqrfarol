@@ -6,5 +6,4 @@ xlsxwriter
 openpyxl
 SpeechRecognition
 pydub
-pyaudio
 pyodbc
