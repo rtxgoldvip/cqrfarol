@@ -21,15 +21,12 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- ESTILOS CSS PREMIUM (AMOLED REFINEMENT) ---
+# --- ESTILOS CSS PREMIUM (AMOLED REFINEMENT V2) ---
 st.markdown("""
 <style>
-/* ... (Base CSS mantida e refinada) ... */
 .stApp {
-    background-color: #000000; /* Fundo Super AMOLED */
+    background-color: #000000;
 }
-
-/* ESTILO DO HEADER PREMIUM */
 .header-premium {
     background: linear-gradient(135deg, #1e2a52 0%, #3b1d5a 100%);
     padding: 25px;
@@ -39,41 +36,22 @@ st.markdown("""
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
 }
 .logo-maestro {
-    font-size: 2.5em;
-    font-weight: bold;
-    color: #ffffff;
+    font-size: 2.5em; font-weight: bold; color: #ffffff;
     text-shadow: 0 0 10px rgba(79, 195, 247, 0.7);
 }
-.tagline {
-    color: #b0c4de;
-    font-style: italic;
-    font-size: 1.1em;
-}
+.tagline { color: #b0c4de; font-style: italic; font-size: 1.1em; }
 
-/* PAINEL EXECUTIVO UNIFICADO (CEO Dashboard) */
 .ceo-dashboard {
-    background: #0a0a0a; /* Fundo ultra-escuro para contraste */
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    padding: 25px;
-    margin-bottom: 20px;
+    background: #0a0a0a; backdrop-filter: blur(10px);
+    border-radius: 15px; padding: 25px; margin-bottom: 20px;
     border: 1px solid rgba(79, 195, 247, 0.2);
-    box-shadow: 0 0 40px rgba(79, 195, 247, 0.1), inset 0 0 15px rgba(0,0,0,0.5); /* Sombra externa e interna para profundidade */
+    box-shadow: 0 0 40px rgba(79, 195, 247, 0.1), inset 0 0 15px rgba(0,0,0,0.5);
 }
-
-/* ÍNDICE DE SAÚDE QUÂNTICA */
 .quantum-health-card {
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 50%;
-    width: 200px;
-    height: 200px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    border: 3px solid; /* Borda mais grossa */
-    margin: auto;
-    transition: all 0.5s ease;
+    background: rgba(0, 0, 0, 0.3); border-radius: 50%;
+    width: 200px; height: 200px; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; border: 3px solid;
+    margin: auto; transition: all 0.5s ease;
 }
 .quantum-health-score { font-size: 3.5em; font-weight: bold; color: white; text-shadow: 0 0 15px; }
 .quantum-health-title { color: #b0c4de; font-weight: bold; }
@@ -84,19 +62,12 @@ st.markdown("""
 .quantum-health-score.status-atencao { color: #FFD700; text-shadow: 0 0 15px #FFD700; }
 .quantum-health-score.status-critico { color: #FF4500; text-shadow: 0 0 15px #FF4500; }
 
-/* CARDS DE PRESCRIÇÃO */
 .prescription-card {
-    background: rgba(255, 255, 255, 0.05);
-    border-left: 5px solid;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.05); border-left: 5px solid;
+    border-radius: 8px; padding: 20px; margin-bottom: 20px;
     transition: all 0.3s ease;
 }
-.prescription-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.2);
-}
+.prescription-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
 .prescription-card.CRÍTICA { border-left-color: #FF4500; }
 .prescription-card.ALTA { border-left-color: #FFA500; }
 .prescription-card.MÉDIA { border-left-color: #4FC3F7; }
@@ -104,20 +75,13 @@ st.markdown("""
 .prescription-title { color: #ffffff; margin: 10px 0 5px 0; font-weight: bold; }
 .prescription-icon { font-size: 1.5em; margin-right: 10px; }
 
-
-/* SIMULADOR QUÂNTICO */
 .simulator-section {
-    background: rgba(0, 0, 0, 0.2);
-    padding: 25px;
-    border-radius: 15px;
-    border: 1px solid rgba(79, 195, 247, 0.2);
+    background: rgba(0, 0, 0, 0.2); padding: 25px;
+    border-radius: 15px; border: 1px solid rgba(79, 195, 247, 0.2);
 }
 .simulator-results {
-    background: #0a0a0a;
-    padding: 20px;
-    border-radius: 10px;
-    margin-top: 20px;
-    border: 1px solid rgba(79, 195, 247, 0.1);
+    background: #0a0a0a; padding: 20px; border-radius: 10px;
+    margin-top: 20px; border: 1px solid rgba(79, 195, 247, 0.1);
 }
 </style>
 """, unsafe_allow_html=True)
@@ -132,7 +96,7 @@ complexidades = ['Baixa', 'Média', 'Alta', 'Crítica']
 senioridade_exigida = ['JÚNIOR', 'PLENO', 'SÊNIOR', 'ESPECIALISTA']
 
 
-# --- NÚCLEO DE RACIOCÍNIO QUÂNTICO (CRQ) - VERSÃO DIAMANTE ---
+# --- NÚCLEO DE RACIOCÍNIO QUÂNTICO (CRQ) - VERSÃO SOBERANA ---
 class CoreQuantumReasoning:
     def __init__(self):
         self.dados_universo = pd.DataFrame()
@@ -163,6 +127,7 @@ class CoreQuantumReasoning:
 
         df['Hrs_Prev'] = df['Duracao_Prev_Dias'] * np.random.uniform(4, 6, num_registros)
         df['Hrs_Real'] = df['Hrs_Prev'] + (df['Atraso_Dias'] * np.random.uniform(4, 6, num_registros))
+        df['Desvio_Hrs'] = df['Hrs_Real'] - df['Hrs_Prev']
         
         df['VH_Venda_Base'] = df['Complexidade'].map({'Baixa': 100, 'Média': 130, 'Alta': 160, 'Crítica': 200})
         df['VH_Venda'] = df['VH_Venda_Base'] * np.random.uniform(0.95, 1.1, num_registros)
@@ -254,44 +219,40 @@ class CoreQuantumReasoning:
 
     def simular_cenario(self, df_base, alteracoes):
         df_simulado = df_base.copy()
+        sucesso = True
         
         if alteracoes['tipo'] == 'custo':
             df_simulado['VH_Custo'] *= (1 + alteracoes['variacao'] / 100)
 
-        elif alteracoes['tipo'] == 'realocacao' and alteracoes['pior_negocio'] and alteracoes['melhor_negocio'] != alteracoes['pior_negocio']:
-            pior_negocio = alteracoes['pior_negocio']
-            melhor_negocio = alteracoes['melhor_negocio']
-            realoc_pct = alteracoes['percentual'] / 100
-
+        elif alteracoes['tipo'] == 'realocacao' and alteracoes.get('pior_negocio') and alteracoes['melhor_negocio'] != alteracoes.get('pior_negocio'):
+            pior_negocio, melhor_negocio, realoc_pct = alteracoes['pior_negocio'], alteracoes['melhor_negocio'], alteracoes['percentual'] / 100
             horas_a_realocar = df_simulado.loc[df_simulado['TipoProj'] == pior_negocio, 'Hrs_Real'].sum() * realoc_pct
-            if horas_a_realocar == 0: return df_simulado, False
-
-            # Fatores de conversão (médias do melhor negócio)
+            
             melhor_negocio_df = df_simulado[df_simulado['TipoProj'] == melhor_negocio]
-            if melhor_negocio_df.empty or melhor_negocio_df['Hrs_Real'].sum() == 0: return df_simulado, False
-            
-            vh_venda_melhor = melhor_negocio_df['Receita'].sum() / melhor_negocio_df['Hrs_Real'].sum()
-            vh_custo_melhor = melhor_negocio_df['Custo'].sum() / melhor_negocio_df['Hrs_Real'].sum()
-            
-            # Reduzir do pior negócio
-            df_simulado.loc[df_simulado['TipoProj'] == pior_negocio, ['Receita', 'Custo', 'Hrs_Real']] *= (1 - realoc_pct)
-            
-            # Adicionar ao melhor negócio (de forma distribuída)
-            receita_adicional = horas_a_realocar * vh_venda_melhor
-            custo_adicional = horas_a_realocar * vh_custo_melhor
-            
-            indices_melhor = df_simulado.index[df_simulado['TipoProj'] == melhor_negocio]
-            if not indices_melhor.empty:
+            if horas_a_realocar > 0 and not melhor_negocio_df.empty and melhor_negocio_df['Hrs_Real'].sum() > 0:
+                vh_venda_melhor = melhor_negocio_df['Receita'].sum() / melhor_negocio_df['Hrs_Real'].sum()
+                vh_custo_melhor = melhor_negocio_df['Custo'].sum() / melhor_negocio_df['Hrs_Real'].sum()
+                
+                df_simulado.loc[df_simulado['TipoProj'] == pior_negocio, ['Receita', 'Custo', 'Hrs_Real']] *= (1 - realoc_pct)
+                
+                receita_adicional, custo_adicional = horas_a_realocar * vh_venda_melhor, horas_a_realocar * vh_custo_melhor
+                indices_melhor = df_simulado.index[df_simulado['TipoProj'] == melhor_negocio]
                 df_simulado.loc[indices_melhor, 'Receita'] += receita_adicional / len(indices_melhor)
                 df_simulado.loc[indices_melhor, 'Custo'] += custo_adicional / len(indices_melhor)
                 df_simulado.loc[indices_melhor, 'Hrs_Real'] += horas_a_realocar / len(indices_melhor)
+            else:
+                sucesso = False
 
-        # Recalcula as métricas chave
+        elif alteracoes['tipo'] == 'eficiencia':
+            reducao_atraso_dias = alteracoes['reducao_dias']
+            df_simulado['Atraso_Dias'] = np.clip(df_simulado['Atraso_Dias'] - reducao_atraso_dias, 0, None)
+            df_simulado['Hrs_Real'] = df_simulado['Hrs_Prev'] + (df_simulado['Atraso_Dias'] * np.random.uniform(4, 6, len(df_simulado)))
+
+        df_simulado['Receita'] = df_simulado['Hrs_Real'] * df_simulado['VH_Venda']
+        df_simulado['Custo'] = df_simulado['Hrs_Real'] * df_simulado['VH_Custo']
         df_simulado['Lucro'] = df_simulado['Receita'] - df_simulado['Custo']
         df_simulado['Margem'] = np.where(df_simulado['Receita'] > 0, (df_simulado['Lucro'] / df_simulado['Receita']) * 100, 0)
-        df_simulado['Atraso_Dias'] = df_simulado['Atraso_Dias'] # Placeholder para futuras simulações de atraso
-        return df_simulado, True
-
+        return df_simulado, sucesso
 
     def gerar_prescricoes_quantum_premium(self, filtros):
         df = self.estado_quantum
@@ -342,10 +303,10 @@ class CoreQuantumReasoning:
 
     def calcular_metricas_consolidadas(self):
         df = self.estado_quantum
-        if df.empty: return {'receita': 0, 'custo': 0, 'lucro': 0, 'margem': 0, 'projetos': 0, 'consultores': 0, 'atraso_medio': 0}
+        if df.empty: return {'receita': 0, 'custo': 0, 'lucro': 0, 'margem': 0, 'projetos': 0, 'consultores': 0, 'atraso_medio': 0, 'hrs_real': 0, 'desvio_hrs': 0}
         return {'receita': df['Receita'].sum(), 'custo': df['Custo'].sum(), 'lucro': df['Lucro'].sum(),
                 'margem': df['Margem'].mean(), 'projetos': df['Projeto'].nunique(), 'consultores': df['Consultor'].nunique(),
-                'atraso_medio': df['Atraso_Dias'].mean()}
+                'atraso_medio': df['Atraso_Dias'].mean(), 'hrs_real': df['Hrs_Real'].sum(), 'desvio_hrs': df['Desvio_Hrs'].sum()}
 
 # --- FUNÇÃO DE EXPORTAÇÃO EXCEL REFINADA ---
 def to_excel_formatted(df):
@@ -369,7 +330,7 @@ def to_excel_formatted(df):
     return output.getvalue()
 
 
-# --- INTERFACE STREAMLIT (VERSÃO DIAMANTE) ---
+# --- INTERFACE STREAMLIT (VERSÃO SOBERANA) ---
 if 'crq' not in st.session_state:
     st.session_state.crq = CoreQuantumReasoning()
     st.session_state.crq.carregar_universo_dados()
@@ -404,9 +365,19 @@ with tab_executiva:
         st.markdown(f'<div class="quantum-health-card {status_class}"><div class="quantum-health-title">Saúde Quântica</div><div class="quantum-health-score {status_class}">{indice_saude}</div></div>', unsafe_allow_html=True)
         st.markdown(f"<p style='text-align: center; margin-top: 10px;'><b>{status_saude}</b>: {desc_saude}</p>", unsafe_allow_html=True)
     with col_kpis:
-        kpi1, kpi2, kpi3 = st.columns(3); kpi4, kpi5, kpi6 = st.columns(3)
-        kpi1.metric("💰 Receita Total", f"R$ {metricas['receita']:,.0f}"); kpi2.metric("📈 Lucro Total", f"R$ {metricas['lucro']:,.0f}"); kpi3.metric("📊 Margem Média", f"{metricas['margem']:.1f}%")
-        kpi4.metric("📁 Projetos Ativos", f"{metricas['projetos']}"); kpi5.metric("👥 Consultores Ativos", f"{metricas['consultores']}"); kpi6.metric("⏳ Atraso Médio (dias)", f"{metricas['atraso_medio']:.1f}")
+        kpi1, kpi2, kpi3 = st.columns(3)
+        kpi4, kpi5, kpi6 = st.columns(3)
+        kpi1.metric("💰 Receita Total", f"R$ {metricas['receita']:,.0f}")
+        kpi2.metric("📈 Lucro Total", f"R$ {metricas['lucro']:,.0f}")
+        kpi3.metric("📊 Margem Média", f"{metricas['margem']:.1f}%")
+        
+        desvio_cor = "normal"
+        if metricas['desvio_hrs'] > 0: desvio_cor = "inverse"
+        kpi4.metric("🕒 Horas Realizadas", f"{metricas['hrs_real']:.0f}h", f"{metricas['desvio_hrs']:.0f}h do Previsto", delta_color=desvio_cor)
+
+        kpi5.metric("📁 Projetos Ativos", f"{metricas['projetos']}")
+        kpi6.metric("⏳ Atraso Médio (dias)", f"{metricas['atraso_medio']:.1f}")
+
     st.markdown("<hr style='border-color: rgba(79, 195, 247, 0.1);'>", unsafe_allow_html=True)
     col_mapa, col_receita = st.columns(2)
     with col_mapa:
@@ -432,19 +403,20 @@ with tab_ressonancia:
 with tab_dimensional:
     st.markdown("## 📊 Análises Dimensionais")
     if not df_filtrado.empty:
-        st.markdown("#### Receita por Cliente por Tipo de Serviço")
-        fig_rec_serv = px.bar(df_filtrado, x="Cliente", y="Receita", color="TipoProj", barmode="group", template='plotly_dark')
+        st.markdown("#### Receita por Cliente e Tipo de Serviço")
+        fig_rec_serv = px.treemap(df_filtrado, path=[px.Constant("Todos"), 'Cliente', 'TipoProj'], values='Receita',
+                                  color='TipoProj', template='plotly_dark',
+                                  color_discrete_map={'(?)':'#2a3f5f', 'Implantação ERP':'#636efa', 'Desenvolvimento Customizado':'#EF553B', 'Suporte Contínuo':'#00CC96', 'Consultoria Estratégica':'#AB63FA'})
         fig_rec_serv.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_rec_serv, use_container_width=True)
         
-        st.markdown("#### Horas Previstas vs. Realizadas por Consultor")
-        horas_consultor = df_filtrado.groupby('Consultor')[['Hrs_Prev', 'Hrs_Real']].sum().reset_index()
-        fig_horas = go.Figure(data=[
-            go.Bar(name='Previstas', x=horas_consultor['Consultor'], y=horas_consultor['Hrs_Prev']),
-            go.Bar(name='Realizadas', x=horas_consultor['Consultor'], y=horas_consultor['Hrs_Real'])
-        ])
-        fig_horas.update_layout(barmode='group', template='plotly_dark', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_horas, use_container_width=True)
+        st.markdown("---")
+        st.markdown("#### Risco vs. Recompensa (Atraso vs. Margem)")
+        fig_risco = px.scatter(df_filtrado, x="Atraso_Dias", y="Margem", size="Receita", color="TipoProj",
+                 hover_name="Projeto", size_max=60, template='plotly_dark')
+        fig_risco.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig_risco, use_container_width=True)
+
     else:
         st.warning("Filtre dados para visualizar as análises.")
 
@@ -452,17 +424,28 @@ with tab_fechamento:
     st.markdown("## 💰 Fechamento de Alta Precisão")
     if not df_filtrado.empty:
         col1, col2 = st.columns(2)
+        
+        style_config = {
+            'Hrs_Prev': '{:.0f}h',
+            'Hrs_Real': '{:.0f}h',
+            'Desvio_Hrs': '{:+.0f}h',
+            'Custo_Total': 'R$ {:,.2f}',
+            'Receita_Gerada': 'R$ {:,.2f}',
+            'Receita_Total': 'R$ {:,.2f}',
+            'Margem_Media': '{:.1f}%'
+        }
+
         with col1:
             st.markdown("### 👥 Por Consultor")
             fech_consultor = df_filtrado.groupby('Consultor').agg(Hrs_Prev=('Hrs_Prev', 'sum'), Hrs_Real=('Hrs_Real', 'sum'), Custo_Total=('Custo', 'sum'), Receita_Gerada=('Receita', 'sum'), Margem_Media=('Margem', 'mean')).reset_index()
             fech_consultor['Desvio_Hrs'] = fech_consultor['Hrs_Real'] - fech_consultor['Hrs_Prev']
-            st.dataframe(fech_consultor[['Consultor', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Custo_Total', 'Receita_Gerada', 'Margem_Media']], use_container_width=True)
+            st.dataframe(fech_consultor[['Consultor', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Custo_Total', 'Receita_Gerada', 'Margem_Media']].style.format(style_config), use_container_width=True)
             st.download_button("📥 Exportar Consultores (XLSX)", to_excel_formatted(fech_consultor), "fechamento_consultores.xlsx")
         with col2:
             st.markdown("### 🏢 Por Cliente")
             fech_cliente = df_filtrado.groupby('Cliente').agg(Hrs_Prev=('Hrs_Prev', 'sum'), Hrs_Real=('Hrs_Real', 'sum'), Custo_Total=('Custo', 'sum'), Receita_Total=('Receita', 'sum'), Margem_Media=('Margem', 'mean')).reset_index()
             fech_cliente['Desvio_Hrs'] = fech_cliente['Hrs_Real'] - fech_cliente['Hrs_Prev']
-            st.dataframe(fech_cliente[['Cliente', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Custo_Total', 'Receita_Total', 'Margem_Media']], use_container_width=True)
+            st.dataframe(fech_cliente[['Cliente', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Custo_Total', 'Receita_Total', 'Margem_Media']].style.format(style_config), use_container_width=True)
             st.download_button("📥 Exportar Clientes (XLSX)", to_excel_formatted(fech_cliente), "fechamento_clientes.xlsx")
     else:
         st.warning("Nenhum dado para o fechamento com os filtros atuais.")
@@ -471,17 +454,21 @@ with tab_comparativo:
     st.markdown("## ⚖️ Comparativo de Realidades")
     hoje = datetime.now()
     ano_atual, mes_atual = hoje.year, hoje.month
-    mes_passado = (hoje.replace(day=1) - timedelta(days=1)).month
-    ano_mes_passado = (hoje.replace(day=1) - timedelta(days=1)).year
+    mes_passado_date = hoje.replace(day=1) - timedelta(days=1)
+    mes_passado, ano_mes_passado = mes_passado_date.month, mes_passado_date.year
+    
+    anos_disponiveis = sorted(crq.dados_universo['Ano'].unique().astype(int))
     
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("##### Realidade 1")
-        ano1 = st.selectbox("Ano 1", sorted(crq.dados_universo['Ano'].unique().astype(int)), key='ano1', index=sorted(crq.dados_universo['Ano'].unique().astype(int)).index(ano_mes_passado))
+        ano1_idx = anos_disponiveis.index(ano_mes_passado) if ano_mes_passado in anos_disponiveis else 0
+        ano1 = st.selectbox("Ano 1", anos_disponiveis, key='ano1', index=ano1_idx)
         mes1 = st.selectbox("Mês 1", list(range(1, 13)), key='mes1', index=mes_passado-1)
     with col2:
         st.markdown("##### Realidade 2")
-        ano2 = st.selectbox("Ano 2", sorted(crq.dados_universo['Ano'].unique().astype(int)), key='ano2', index=sorted(crq.dados_universo['Ano'].unique().astype(int)).index(ano_atual))
+        ano2_idx = anos_disponiveis.index(ano_atual) if ano_atual in anos_disponiveis else len(anos_disponiveis)-1
+        ano2 = st.selectbox("Ano 2", anos_disponiveis, key='ano2', index=ano2_idx)
         mes2 = st.selectbox("Mês 2", list(range(1, 13)), key='mes2', index=mes_atual-1)
         
     if st.button("Comparar Realidades", use_container_width=True):
@@ -490,6 +477,7 @@ with tab_comparativo:
         
         if df1.empty or df2.empty: st.error("Um ou ambos os períodos não contêm dados.")
         else:
+            st.markdown('<div class="ceo-dashboard">', unsafe_allow_html=True)
             m1 = {'receita': df1['Receita'].sum(), 'lucro': df1['Lucro'].sum(), 'margem': df1['Margem'].mean()}
             m2 = {'receita': df2['Receita'].sum(), 'lucro': df2['Lucro'].sum(), 'margem': df2['Margem'].mean()}
             
@@ -497,8 +485,16 @@ with tab_comparativo:
             c1.metric("Receita", f"R$ {m2['receita']:,.0f}", f"R$ {m2['receita'] - m1['receita']:,.0f}")
             c2.metric("Lucro", f"R$ {m2['lucro']:,.0f}", f"R$ {m2['lucro'] - m1['lucro']:,.0f}")
             c3.metric("Margem", f"{m2['margem']:.1f}%", f"{m2['margem'] - m1['margem']:.1f} pp")
+            st.markdown("---")
+            st.markdown("#### A Narrativa do Maestro: O que mudou?")
+            # Simples narrativa textual
+            narrativa = f"Ao comparar {mes2}/{ano2} com {mes1}/{ano1}, observamos uma variação de **R$ {m2['lucro'] - m1['lucro']:,.0f}** no lucro. "
+            if abs(m2['receita'] - m1['receita']) > abs((m2['receita'] - m2['lucro']) - (m1['receita'] - m1['lucro'])) :
+                narrativa += "A principal força motriz foi a **variação na receita**."
+            else:
+                narrativa += "A principal força motriz foi a **gestão de custos**."
+            st.write(narrativa)
 
-            # Análise Detalhada da Variação
             df_comp = pd.concat([df1.assign(Periodo='P1'), df2.assign(Periodo='P2')])
             lucro_proj_comp = df_comp.pivot_table(index='Projeto', columns='Periodo', values='Lucro', aggfunc='sum').fillna(0)
             lucro_proj_comp['Variacao'] = lucro_proj_comp['P2'] - lucro_proj_comp['P1']
@@ -506,22 +502,23 @@ with tab_comparativo:
             top_positivos = lucro_proj_comp[lucro_proj_comp['Variacao'] > 0].sort_values('Variacao', ascending=False).head(3)
             top_negativos = lucro_proj_comp[lucro_proj_comp['Variacao'] < 0].sort_values('Variacao', ascending=True).head(3)
 
-            st.markdown("---")
             st.markdown("#### Vetores de Variação de Lucro")
             v1, v2 = st.columns(2)
-            with v1: st.write("📈 **Principais Aumentos:**"); st.dataframe(top_positivos)
-            with v2: st.write("📉 **Principais Reduções:**"); st.dataframe(top_negativos)
+            with v1: st.write("📈 **Principais Aumentos:**"); st.dataframe(top_positivos.style.format({'P1':'R$ {:,.2f}', 'P2':'R$ {:,.2f}', 'Variacao':'R$ {:,.2f}'}))
+            with v2: st.write("📉 **Principais Reduções:**"); st.dataframe(top_negativos.style.format({'P1':'R$ {:,.2f}', 'P2':'R$ {:,.2f}', 'Variacao':'R$ {:,.2f}'}))
+            st.markdown('</div>', unsafe_allow_html=True)
+
 
 with tab_simulador:
     st.markdown("## 🔮 Simulador de Realidades")
     st.markdown('<div class="simulator-section">', unsafe_allow_html=True)
     st.write("Aqui, você não prevê o futuro. Você o projeta.")
     
-    sim_tipo = st.radio("Escolha o tipo de simulação:", ('Realocação Estratégica', 'Variação de Custo'), horizontal=True, label_visibility="collapsed")
+    sim_tipo = st.radio("Escolha o tipo de simulação:", ('Realocação Estratégica', 'Variação de Custo', 'Otimização de Eficiência'), horizontal=True)
     alteracoes_sim = {}
     
     if sim_tipo == 'Variação de Custo':
-        variacao_custo = st.slider("Variação % no Custo/Hora de todos os consultores", -20.0, 20.0, 0.0, 0.5)
+        variacao_custo = st.slider("Variação % no Custo/Hora de todos os consultores", -20.0, 20.0, 0.0, 0.5, key="sim_custo")
         alteracoes_sim = {'tipo': 'custo', 'variacao': variacao_custo}
     
     elif sim_tipo == 'Realocação Estratégica' and not df_filtrado.empty:
@@ -529,13 +526,20 @@ with tab_simulador:
         if len(rentabilidade_tipo) > 1:
             melhor_tipo = rentabilidade_tipo.idxmax()
             pior_tipo = rentabilidade_tipo.idxmin()
-            percentual_realoc = st.slider(f"Realocar % de Horas de '{pior_tipo}' para '{melhor_tipo}'", 0.0, 100.0, 0.0, 1.0)
+            percentual_realoc = st.slider(f"Realocar % de Horas de '{pior_tipo}' para '{melhor_tipo}'", 0.0, 100.0, 0.0, 1.0, key="sim_realoc")
             alteracoes_sim = {'tipo': 'realocacao', 'pior_negocio': pior_tipo, 'melhor_negocio': melhor_tipo, 'percentual': percentual_realoc}
         else:
             st.warning("Dados insuficientes para simulação de realocação (necessário mais de um tipo de projeto).")
+    
+    elif sim_tipo == 'Otimização de Eficiência' and not df_filtrado.empty:
+        atraso_medio_atual = df_filtrado['Atraso_Dias'].mean()
+        reducao_dias = st.slider(f"Redução no Atraso Médio de Projetos (dias) - Atual: {atraso_medio_atual:.1f}d", 0, int(atraso_medio_atual) if atraso_medio_atual > 0 else 10, 0, 1, key="sim_eficiencia")
+        alteracoes_sim = {'tipo': 'eficiencia', 'reducao_dias': reducao_dias}
+
 
     if st.button("▶️ Simular Interferência", type="primary", use_container_width=True):
         if df_filtrado.empty: st.error("Selecione dados na sidebar antes de simular.")
+        elif not alteracoes_sim: st.warning("Configure uma simulação para continuar.")
         else:
             df_simulado, sucesso = crq.simular_cenario(df_filtrado, alteracoes_sim)
             if not sucesso: st.error("Erro na simulação. Verifique os dados de entrada.")
