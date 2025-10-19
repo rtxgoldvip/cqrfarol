@@ -3,4 +3,4 @@ pandas
 numpy
 plotly
 openpyxl
-pyodbc==5.1.0
+pyodbc
