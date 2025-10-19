@@ -1,9 +1,6 @@
-pandas
 streamlit
-plotly
+pandas
 numpy
-xlsxwriter
+plotly
 openpyxl
-SpeechRecognition
-pydub
-pyodbc
+pyodbc==5.1.0
