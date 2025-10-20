@@ -1,372 +1,338 @@
-# -*- coding: utf-8 -*-
-# MAESTRO QUÂNTICO v7.2 - A Ressonância da Verdade (Versão Completa e Corrigida)
+# Salve este código como: maestro_app.py
 
-# --- Importações Essenciais ---
-import pandas as pd
 import streamlit as st
+import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
-import warnings
+from datetime import datetime
+import pyodbc
 import io
-import time
+import random
 
-try:
-    import pyodbc
-    PYODBC_AVAILABLE = True
-except ImportError:
-    PYODBC_AVAILABLE = False
+# ═══════════════════════════════════════════════════════════════════════════════
+# CONFIGURAÇÃO DA PÁGINA E CSS PREMIUM
+# ═══════════════════════════════════════════════════════════════════════════════
 
-warnings.filterwarnings('ignore')
+st.set_page_config(
+    page_title="MAESTRO FAROL - Quantum Intelligence",
+    page_icon="🔮",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
-# --- CONFIGURAÇÃO DA PÁGINA PREMIUM v7.2 ---
-st.set_page_config(page_title="MAESTRO QUÂNTICO v7.2", page_icon="🔮", layout="wide", initial_sidebar_state="expanded")
-
-# --- v7.2: ESTILO CSS CORRIGIDO E REFINADO ---
 st.markdown("""
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
-    
-    :root {
-        --primary-color: #00BFFF; /* Deep Sky Blue */
-        --secondary-color: #8A2BE2; /* Blue Violet */
-        --background-color: #050818;
-        --surface-color: #10142B;
-        --text-color: #E0E0E0;
-        --success-color: #39FF14; /* Neon Green */
-        --danger-color: #FF4500; /* Orange Red */
-    }
-
-    /* CORREÇÃO PRINCIPAL: Aplicamos a fonte 'Poppins' ao body, mas não a todos os elementos internos do Streamlit. */
-    /* Isso impede que a fonte dos ícones do Streamlit (como o botão da sidebar) seja sobrescrita. */
-    body { 
-        font-family: 'Poppins', sans-serif; 
-        color: var(--text-color);
-    }
-
-    .main { background-color: var(--background-color); }
-    .stApp { background: radial-gradient(circle at top right, #1a1a2e 0%, var(--background-color) 50%); }
-
-    h1, h2, h3 {
-        background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-weight: 700;
-    }
-
-    h3 i, h6 i { 
-        font-size: 1.1em; 
-        margin-right: 12px; 
-        vertical-align: middle;
-        background: -webkit-linear-gradient(45deg, var(--primary-color), var(--secondary-color));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    /* --- Estilo das Abas com Ícones --- */
-    .stTabs [data-baseweb="tab"] { 
-        height: 55px;
-        background-color: transparent !important;
-        padding: 10px 20px;
-        border-radius: 8px;
-        border: 1px solid rgba(0, 191, 255, 0.1);
-        transition: all 0.3s ease;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] { 
-        background: rgba(0, 191, 255, 0.1); 
-        border-bottom: 3px solid var(--primary-color); 
-        color: var(--primary-color);
-    }
-    
-    /* --- Estilo dos KPIs e Indicadores Delta --- */
-    .kpi-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        padding: 20px;
-        background: var(--surface-color);
-        border-radius: 15px;
-        border: 1px solid rgba(0, 191, 255, 0.2);
-    }
-    .kpi-card { text-align: center; }
-    .kpi-title { font-size: 1rem; color: #A0A0B0; margin-bottom: 5px; }
-    .kpi-value { font-size: 2.2rem; font-weight: 700; color: var(--text-color); }
-    .kpi-delta-gain { font-size: 1rem; color: var(--success-color); font-weight: 600; }
-    .kpi-delta-loss { font-size: 1rem; color: var(--danger-color); font-weight: 600; }
-
+    .stApp { background-color: #000000; color: #E0E0E0; }
+    .header-premium { background: linear-gradient(135deg, #1e2a52 0%, #3b1d5a 100%); padding: 25px; border-radius: 15px; margin-bottom: 25px; border: 1px solid rgba(79, 195, 247, 0.3); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); }
+    .logo-maestro { font-size: 2.5em; font-weight: bold; color: #ffffff; text-shadow: 0 0 10px rgba(79, 195, 247, 0.7); }
+    .tagline { color: #b0c4de; font-style: italic; font-size: 1.1em; }
+    .ceo-dashboard { background: #0a0a0a; backdrop-filter: blur(10px); border-radius: 15px; padding: 25px; margin-bottom: 20px; border: 1px solid rgba(79, 195, 247, 0.2); box-shadow: 0 0 40px rgba(79, 195, 247, 0.1), inset 0 0 15px rgba(0,0,0,0.5); }
+    .prescription-card { background: rgba(255, 255, 255, 0.05); border-left: 5px solid; border-radius: 8px; padding: 20px; margin-bottom: 20px; transition: all 0.3s ease; }
+    .prescription-card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+    .prescription-card.CRÍTICA { border-left-color: #FF4500; }
+    .prescription-card.ALTA { border-left-color: #FFA500; }
+    .prescription-card.MÉDIA { border-left-color: #4FC3F7; }
+    .prescription-card.BAIXA { border-left-color: #4CAF50; }
+    .prescription-title { color: #ffffff; margin: 10px 0 5px 0; font-weight: bold; }
+    .prescription-icon { font-size: 1.5em; margin-right: 10px; }
+    .socratic-card { background: rgba(255, 215, 0, 0.05); border: 1px solid rgba(255, 215, 0, 0.2); border-left: 5px solid #FFD700; border-radius: 8px; padding: 25px; margin-bottom: 20px; }
+    .socratic-title { color: #FFD700; font-weight: bold; font-size: 1.2em; }
+    blockquote { border-left: 3px solid #b0c4de; padding-left: 1.5rem; margin-left: 1rem; font-style: italic; color: #E0E0E0; font-size: 1.1em; }
+    .voice-section { background: #0a0a0a; border-radius: 15px; padding: 25px; margin: 20px 0; border: 1px solid rgba(79, 195, 247, 0.2); text-align: center; }
+    [data-testid="stMetricValue"] { color: #4FC3F7; }
+    [data-testid="stMetricDelta"] .st-bd { font-size: 1em !important; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# --- NÚCLEO COMPLETO-DATA ORCHESTRATOR ---
-class DataOrchestrator:
-    def __init__(self):
-        self.conn_str = self._get_conn_str()
-        self.super_query = """
+# ═══════════════════════════════════════════════════════════════════════════════
+# MÓDULO DE DADOS: CONEXÃO SEGURA E A "SUPER QUERY 2.0"
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=300)
+def carregar_universo_de_dados():
+    try:
+        conn_str = (
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"SERVER={st.secrets['db_credentials']['server']};"
+            f"DATABASE={st.secrets['db_credentials']['database']};"
+            f"UID={st.secrets['db_credentials']['username']};"
+            f"PWD={st.secrets['db_credentials']['password']};"
+            f"TrustServerCertificate=yes;"
+        )
+        cnxn = pyodbc.connect(conn_str)
+        
+        super_query = """
         SELECT
-            g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
-            g.QtHrOrc as Horas_Previstas, g.QtHrReal as Horas_Realizadas,
-            g.ReceitaReal as Receita_Total, g.CustoReal as Custo_Total,
-            g.PercMgReal as Margem_Percentual, tec.NomeTec as Consultor,
-            niv.DescNivel as Nivel_Consultor, p.DescProj as Projeto,
-            p.ObsProj as Projeto_Descricao, t.DescTipo as Tipo_Projeto,
-            neg.DescNeg as Negocio_Projeto, status.DescStatus as Status_Projeto,
-            resp.NomeResp as Responsavel_Projeto, cli.DescCli as Cliente
+            CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
+            g.QtHrOrc as "Hrs_Prev", g.QtHrReal as "Hrs_Real",
+            g.ReceitaReal as "Receita", g.CustoReal as "Custo",
+            tec.NomeTec as "Consultor", niv.DescNivel as "Nivel_Consultor",
+            p.DescProj as "Projeto", t.DescTipo as "TipoProj",
+            cli.DescCli as "Cliente", p.VlHrProj as "VH Venda",
+            tec.VlHrTec as "VH Custo"
         FROM Tb_GestorFin2 g
-        LEFT JOIN tb_Proj p ON g.ProjGest = p.AutNumProj LEFT JOIN tb_tec tec ON g.ConsultGest = tec.AutNumTec
-        LEFT JOIN tb_cli cli ON p.CodCliProj = cli.AutNumCli LEFT JOIN tb_tipoproj t ON p.TipoProj = t.AutNumTipo
-        LEFT JOIN tb_neg neg ON p.CodNegProj = neg.AutNumNeg LEFT JOIN tb_StatusProj status ON p.StatusProj = status.AutNumStatus
-        LEFT JOIN tb_respproj resp ON p.RespProj1 = resp.AutNumResp LEFT JOIN tb_amarradisc amarra ON tec.AutNumTec = amarra.CodTecAmar
+        LEFT JOIN tb_Proj p ON g.ProjGest = p.AutNumProj
+        LEFT JOIN tb_tec tec ON g.ConsultGest = tec.AutNumTec
+        LEFT JOIN tb_cli cli ON p.CodCliProj = cli.AutNumCli
+        LEFT JOIN tb_tipoproj t ON p.TipoProj = t.AutNumTipo
+        LEFT JOIN tb_amarradisc amarra ON tec.AutNumTec = amarra.CodTecAmar
         LEFT JOIN tb_nivel niv ON amarra.Nivel = niv.AutNivel
         WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOT NULL
         GROUP BY
-            g.IdGest2, g.Mes, g.Ano, g.QtHrOrc, g.QtHrReal, g.ReceitaReal, g.CustoReal, g.PercMgReal,
-            tec.NomeTec, niv.DescNivel, p.DescProj, p.ObsProj, t.DescTipo, neg.DescNeg, status.DescStatus, resp.NomeResp, cli.DescCli;
+            g.IdGest2, g.Mes, g.Ano, g.QtHrOrc, g.QtHrReal, g.ReceitaReal, g.CustoReal,
+            g.PercMgReal, tec.NomeTec, niv.DescNivel, p.DescProj, t.DescTipo, cli.DescCli,
+            p.VlHrProj, tec.VlHrTec;
         """
+        df = pd.read_sql(super_query, cnxn)
+        cnxn.close()
 
-    def _get_conn_str(self):
-        try:
-            return (f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-                    f"SERVER={st.secrets['db_credentials']['server']};"
-                    f"DATABASE={st.secrets['db_credentials']['database']};"
-                    f"UID={st.secrets['db_credentials']['username']};"
-                    f"PWD={st.secrets['db_credentials']['password']};"
-                    f"TrustServerCertificate=yes;")
-        except (KeyError, FileNotFoundError): return None
+        df['Dt_Fim_Real'] = pd.to_datetime(df['Ano'].astype(str) + '-' + df['Mes'].astype(str) + '-01', errors='coerce')
+        for col in ["Hrs_Prev", "Hrs_Real", "Receita", "Custo", "VH Venda", "VH Custo"]:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
 
-    def get_data(self):
-        if not PYODBC_AVAILABLE or not self.conn_str: return None
-        try:
-            with pyodbc.connect(self.conn_str, timeout=10) as cnxn:
-                return pd.read_sql(self.super_query, cnxn)
-        except Exception: return None
-
-# --- NÚCLEO COMPLETO - QuantumAnalyticsEngine ---
-class QuantumAnalyticsEngine:
-    def __init__(self):
-        self.dados_originais = self._load_data()
-        self.dados_filtrados = self.dados_originais.copy()
-
-    def _load_data(self):
-        orchestrator = DataOrchestrator()
-        df = orchestrator.get_data()
-        if df is not None and not df.empty:
-            st.sidebar.success(f"Conectado! {len(df)} registros ressonantes.", icon="✅")
-            return self._processar_dados(df)
-        st.toast("Usando dados de simulação interna.", icon="🔬")
-        return self._processar_dados(self._create_mock_data())
-
-    def _processar_dados(self, df):
-        numeric_cols = ['Horas_Previstas', 'Horas_Realizadas', 'Receita_Total', 'Custo_Total', 'Margem_Percentual']
-        for col in numeric_cols: df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-        df['Lucro_Total'] = df['Receita_Total'] - df['Custo_Total']
-        df['Sobra_Horas'] = df['Horas_Previstas'] - df['Horas_Realizadas']
-        df['Eficiencia_Percentual'] = np.where(df['Horas_Previstas'] > 0, (df['Sobra_Horas'] / df['Horas_Previstas']) * 100, 0)
-
-        for col in ['Nivel_Consultor', 'Negocio_Projeto', 'Status_Projeto']:
-            df[col] = df[col].fillna('Não Definido')
+        df['TipoContrato'] = df['TipoProj'].apply(lambda x: 'Escopo Fechado' if 'Fechado' in str(x) else 'Time & Material')
+        df['Receita_Esperada'] = df['Hrs_Real'] * df['VH Venda']
+        df['Valor_Nao_Faturado'] = df['Receita_Esperada'] - df['Receita']
+        df['Valor_Nao_Faturado'] = df['Valor_Nao_Faturado'].apply(lambda x: x if x > 0 else 0)
+        df['Lucro'] = df['Receita'] - df['Custo']
+        df['Margem'] = np.where(df['Receita'] > 0, (df['Lucro'] / df['Receita']) * 100, 0)
+        df['Desvio_Hrs'] = df['Hrs_Real'] - df['Hrs_Prev']
         
-        df_tensao = df.groupby(['Ano', 'Mes', 'Consultor']).agg(
-            dispersao_foco=('Projeto', 'nunique'),
-            complexidade_mix=('Negocio_Projeto', 'nunique')
-        ).reset_index()
-        
-        df_tensao['dispersao_norm'] = (df_tensao['dispersao_foco'] / df_tensao['dispersao_foco'].max()) * 5
-        df_tensao['complexidade_norm'] = (df_tensao['complexidade_mix'] / df_tensao['complexidade_mix'].max()) * 5
-        df_tensao['Indice_Tensao_Alocacao'] = df_tensao['dispersao_norm'] + df_tensao['complexidade_norm']
-        
-        df = pd.merge(df, df_tensao[['Ano', 'Mes', 'Consultor', 'Indice_Tensao_Alocacao']], on=['Ano', 'Mes', 'Consultor'], how='left')
-        return df
+        return df.fillna(0)
 
-    def _create_mock_data(self):
-        data = { 'Mes': [1, 1, 1, 2, 2, 3], 'Ano': [2025]*6, 'Consultor': ['RAFAEL OLIVEIRA', 'CLEBER NEVES', 'ADRIANO AFONSO', 'RAFAEL OLIVEIRA', 'RAFAEL OLIVEIRA', 'CLEBER NEVES'], 'Nivel_Consultor': ['SÊNIOR', 'PLENO', 'ESPECIALISTA', 'SÊNIOR', 'SÊNIOR', 'PLENO'], 'Cliente': ['AUTOZONE', 'TOTVS NOROESTE', 'HYDAC', 'TBC', 'TBC', 'HYDAC'], 'Projeto': ['ALOCAÇÃO PMO', 'BODY SHOP', 'IMPLANTAÇÃO FISCAL', 'BODY SHOP', 'SUPORTE AVANÇADO', 'SUPORTE FECHADO'], 'Negocio_Projeto': ['OUTSOURCING - LOCAÇÃO', 'OUTSOURCING - LOCAÇÃO', 'PROJETOS', 'OUTSOURCING - LOCAÇÃO', 'PROJETOS', 'PROJETOS'], 'Status_Projeto': ['EM ABERTO', 'FATURADO', 'EM ABERTO', 'FATURADO', 'EM ABERTO', 'FATURADO'], 'Horas_Previstas': [160, 160, 100, 80, 40, 50], 'Horas_Realizadas': [170, 160, 125, 75, 35, 55], 'Receita_Total': [26800, 18400, 25000, 10450, 5500, 6000], 'Custo_Total': [16800, 9600, 15000, 5225, 2750, 3300], 'Margem_Percentual': [37.3, 47.8, 40.0, 50.0, 50.0, 45.0]}
-        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"Erro Crítico ao conectar com o universo de dados: {e}")
+        return pd.DataFrame()
 
-    def aplicar_filtros(self, filters):
-        df = self.dados_originais.copy()
-        for key, value in filters.items():
-            if value and value != "TODOS" and value != ["TODOS"]:
-                if isinstance(value, list): df = df[df[key].isin(value)]
-                else: df = df[df[key] == value]
-        self.dados_filtrados = df
-        return df
+# ═══════════════════════════════════════════════════════════════════════════════
+# NÚCLEO DE RACIOCÍNIO QUÂNTICO (CRQ) - VERSÃO FINAL SOCRÁTICA
+# ═══════════════════════════════════════════════════════════════════════════════
+class CoreQuantumReasoning:
+    def __init__(self, dados_universo):
+        self.dados_universo = dados_universo
+        self.estado_quantum = pd.DataFrame()
 
-    def _format_text_for_html(self, text):
-        return text.replace("**", "<b>").replace("</b>", "</b>", 1).replace("</b>", "</b>")
+    def aplicar_colapso_quantico(self, filtros):
+        df = self.dados_universo.copy()
+        if filtros.get('mes') and 'TODOS' not in filtros['mes']: df = df[df['Mes'] == filtros['mes']]
+        if filtros.get('ano') and 'TODOS' not in filtros['ano']: df = df[df['Ano'] == filtros['ano']]
+        if filtros.get('consultores') and 'TODOS' not in filtros['consultores']: df = df[df['Consultor'].isin(filtros['consultores'])]
+        if filtros.get('clientes') and 'TODOS' not in filtros['clientes']: df = df[df['Cliente'].isin(filtros['clientes'])]
+        self.estado_quantum = df
 
-    def gerar_insights_prescritivos(self, df):
-        if df.empty or len(df) < 3: return [{'tipo': 'insight', 'texto': 'Dados insuficientes para gerar insights. Altere os filtros.'}]
+    def gerar_sinfonia_de_insights_sapiens(self):
+        df = self.estado_quantum
+        if df.empty: return []
         insights = []
-        tensao_alta = df[df['Indice_Tensao_Alocacao'] > 7.5]
-        if not tensao_alta.empty:
-            consultor_tensao = tensao_alta.sort_values('Indice_Tensao_Alocacao', ascending=False).iloc[0]
-            insights.append({'tipo': 'alert', 'texto': f"**Alerta de Tensão de Alocação:** O consultor **'{consultor_tensao['Consultor']}'** apresenta um índice de tensão de **{consultor_tensao['Indice_Tensao_Alocacao']:.1f}/10**. **Diagnóstico:** A alta dispersão de projetos e complexidade de negócios pode levar a erros ou queda na qualidade. **Prescrição:** Avaliar a consolidação de suas tarefas ou a designação de um único tipo de negócio para o próximo ciclo."})
+
+        # INSIGHT 1: Vazamento de Lucro em Projetos Fechados
+        proj_fechados_overrun = df[(df['TipoContrato'] == 'Escopo Fechado') & (df['Desvio_Hrs'] > 0)]
+        if not proj_fechados_overrun.empty:
+            custo_extra = (proj_fechados_overrun['Desvio_Hrs'] * proj_fechados_overrun['VH Custo']).sum()
+            margem_media = proj_fechados_overrun['Margem'].mean()
+            if margem_media < 25 and custo_extra > 500:
+                insights.append({'tipo': 'FINANCEIRO', 'prioridade': 'CRÍTICA', 'icone': '🚱', 'titulo': 'Vazamento de Lucro em Projetos Fechados', 'analise': f"O excesso de horas em projetos de 'Escopo Fechado' consumiu R$ {custo_extra:,.2f} do lucro, derrubando a margem média destes para {margem_media:.1f}%.", 'prescricao': "1. **Contenção:** Revisar imediatamente o escopo e o progresso dos projetos afetados.\n2. **Prevenção:** Implementar um processo rigoroso de 'Change Request'.\n3. **Estratégia:** Calibrar futuras propostas com uma margem de segurança de 15-20% nas horas."})
+
+        # INSIGHT 2: Receita Não Realizada (Horas Não Faturadas)
+        total_nao_faturado = df['Valor_Nao_Faturado'].sum()
+        if total_nao_faturado > (df['Receita'].sum() * 0.05): # Se for > 5% da receita
+            insights.append({'tipo': 'FINANCEIRO', 'prioridade': 'ALTA', 'icone': '🧾', 'titulo': 'Receita Não Realizada (Horas Não Faturadas)', 'analise': f"Detectamos um gap de R$ {total_nao_faturado:,.2f} entre as horas trabalhadas e o valor faturado. Isso pode indicar falhas no processo de faturamento ou 'cortesias' não documentadas.", 'prescricao': "1. **Auditoria:** Realizar conciliação focada nos projetos com gap.\n2. **Processo:** Garantir que 100% das horas em projetos 'Time & Material' sejam refletidas na fatura.\n3. **Política:** Definir e registrar políticas de desconto ou investimento."})
+
+        # INSIGHT 3: Ponto de Atenção Estratégica em T&M
+        proj_tm_overrun = df[(df['TipoContrato'] == 'Time & Material') & (df['Desvio_Hrs'] > 0) & (df['Valor_Nao_Faturado'] == 0)]
+        if not proj_tm_overrun.empty:
+            receita_adicional = (proj_tm_overrun['Desvio_Hrs'] * proj_tm_overrun['VH Venda']).sum()
+            if receita_adicional > (df['Receita'].sum() * 0.1): # Se o extra representa > 10% do total
+                insights.append({'tipo': 'ESTRATÉGICO', 'prioridade': 'MÉDIA', 'icone': '🧐', 'titulo': 'Atenção: Expansão de Escopo Validada', 'analise': f"**Validação:** O sistema confirmou que o aumento de horas em {len(proj_tm_overrun)} projetos 'Time & Material' foi corretamente faturado, gerando R$ {receita_adicional:,.2f} de receita adicional. Financeiramente, está correto.\n\n**Ponto de Atenção:** Este padrão indica uma expansão contínua do escopo ('scope creep'). Se não for gerenciado, pode levar a desalinhamentos de expectativa e impactar a alocação de recursos.", 'prescricao': "1. **Alinhamento:** Agendar reunião com o cliente para discutir o roadmap e formalizar a expansão.\n2. **Gestão de Recursos:** Avaliar se a equipe alocada ainda é suficiente para a nova dimensão do projeto.\n3. **Oportunidade de Upsell:** Transformar a necessidade crescente em um novo contrato."})
         
-        projetos_ineficientes = df[df['Eficiencia_Percentual'] < -20]
-        if not projetos_ineficientes.empty:
-            proj_ineficiente = projetos_ineficientes.sort_values('Eficiencia_Percentual').iloc[0]
-            insights.append({'tipo': 'insight', 'texto': f"**Vazamento de Valor Detectado:** O projeto **'{proj_ineficiente['Projeto']}'** consumiu **{-proj_ineficiente['Eficiencia_Percentual']:.0f}%** mais horas que o previsto. **Diagnóstico:** Esta é uma assinatura clássica de 'scope creep' ou estimativa inicial falha. **Prescrição:** Realizar uma biópsia neste projeto para entender a causa raiz e ajustar o processo de orçamentação para contratos similares."})
+        # INSIGHT 4: Assimetria de Performance entre Consultores
+        if df['Consultor'].nunique() > 2:
+            perf_cons = df.groupby('Consultor').agg(Lucro_Gerado=('Lucro', 'sum'), Margem_Media=('Margem', 'mean')).sort_values('Lucro_Gerado', ascending=False)
+            top_performer = perf_cons.index[0]
+            bottom_performer = perf_cons.index[-1]
+            lucro_top = perf_cons.iloc[0]['Lucro_Gerado']
+            lucro_bottom = perf_cons.iloc[-1]['Lucro_Gerado']
+            if lucro_top > 0 and (lucro_top / max(abs(lucro_bottom), 1)) > 3 :
+                 insights.append({'tipo': 'TALENTO', 'prioridade': 'ALTA', 'icone': '🏆', 'titulo': 'Assimetria de Performance Detectada', 'analise': f"Existe uma disparidade significativa na geração de lucro. O consultor **{top_performer}** gerou R$ {lucro_top:,.2f} em lucro, enquanto **{bottom_performer}** teve um resultado de R$ {lucro_bottom:,.2f}. Nivelar essa performance é uma alavanca de crescimento.", 'prescricao': "1. **Mentoria:** Implementar programa de mentoria: {top_performer} → {bottom_performer}.\n2. **Padronização:** Documentar e disseminar as melhores práticas do Top Performer.\n3. **Alocação:** Avaliar se os projetos de menor resultado estão adequados ao nível do consultor."})
+
+        if not insights:
+             insights.append({'tipo': 'SUCESSO', 'prioridade': 'BAIXA', 'icone': '✅', 'titulo': 'Operação Consistente', 'analise': "Nenhuma dissonância crítica foi detectada. Os processos financeiros e operacionais estão funcionando como esperado.", 'prescricao': "Manter a disciplina e os controles atuais."})
         
-        return insights if insights else [{'tipo': 'success', 'texto': 'A orquestra está em perfeita harmonia. Nenhuma dissonância crítica detectada nos filtros atuais.'}]
+        return sorted(insights, key=lambda p: ['CRÍTICA', 'ALTA', 'MÉDIA', 'BAIXA'].index(p['prioridade']))
 
-    def diagnosticar_e_narrar_variacao(self, p1, p2, p1_name, p2_name):
-        if p1.empty or p2.empty: return "Dados insuficientes em um dos períodos para gerar uma narrativa."
-        lucro1, lucro2 = p1['Lucro_Total'].sum(), p2['Lucro_Total'].sum()
-        var_lucro = ((lucro2 - lucro1) / abs(lucro1)) * 100 if lucro1 != 0 else float('inf')
-        if abs(var_lucro) < 2: return f"Performance de lucro estável entre os períodos (variação de {var_lucro:.1f}%)."
-        direcao = "aumento" if var_lucro > 0 else "redução"
-        narrativa = f"Observou-se um(a) **{direcao} de {abs(var_lucro):.1f}% no lucro** em {p2_name} vs. {p1_name}. "
-        receita1, receita2 = p1['Receita_Total'].sum(), p2['Receita_Total'].sum()
-        custo1, custo2 = p1['Custo_Total'].sum(), p2['Custo_Total'].sum()
-        var_receita_abs, var_custo_abs = abs(receita2 - receita1), abs(custo2 - custo1)
-        if var_receita_abs > var_custo_abs: narrativa += "O principal vetor de mudança foi o **comportamento da receita**. "
-        else: narrativa += "O principal vetor de mudança foi a **gestão de custos**. "
-        mix_negocio1 = p1['Negocio_Projeto'].value_counts(normalize=True); mix_negocio2 = p2['Negocio_Projeto'].value_counts(normalize=True)
-        mudanca_mix = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).abs().sum() > 0.2
-        if mudanca_mix:
-            negocio_aumento = (mix_negocio2.subtract(mix_negocio1, fill_value=0)).idxmax()
-            narrativa += f"Uma análise profunda revela **uma reconfiguração no mix de negócios**, com aumento da relevância de projetos **'{negocio_aumento}'**. "
-        narrativa += f"**Prescrição:** Recomenda-se uma imersão nos projetos de '{negocio_aumento if mudanca_mix else p2['Negocio_Projeto'].mode()[0]}' para replicar padrões de sucesso ou mitigar riscos sistêmicos."
-        return narrativa
+    def gerar_perguntas_socraticas(self):
+        df = self.estado_quantum
+        if df.empty or len(df) < 2: return []
+        perguntas = []
 
-# --- INICIALIZAÇÃO E GERENCIAMENTO DE ESTADO ---
-@st.cache_resource
-def init_engine(): return QuantumAnalyticsEngine()
-engine = init_engine()
+        if df['TipoProj'].nunique() > 1 and df['Receita'].sum() > 0:
+            rentabilidade = df.groupby('TipoProj').agg(Receita=('Receita', 'sum'), Margem=('Margem', 'mean')).reset_index()
+            rentabilidade = rentabilidade[rentabilidade['Receita']>0]
+            if len(rentabilidade) > 1:
+                maior_receita = rentabilidade.loc[rentabilidade['Receita'].idxmax()]
+                maior_margem = rentabilidade.loc[rentabilidade['Margem'].idxmax()]
+                if maior_receita['TipoProj'] != maior_margem['TipoProj'] and (maior_margem['Margem'] - maior_receita['Margem']) > 10 and maior_receita['Margem'] > 0 :
+                    perguntas.append({'icone': '🤔', 'titulo': 'Sobre a Estratégia de Mix de Serviços', 'pergunta': f"O Maestro observa que '{maior_receita['TipoProj']}' gerou {(maior_receita['Receita'] / df['Receita'].sum() * 100):.0f}% da receita com uma margem de {maior_receita['Margem']:.1f}%, enquanto '{maior_margem['TipoProj']}' é {(maior_margem['Margem'] / maior_receita['Margem']):.1f}x mais lucrativo. Esta é uma alavancagem estratégica para ganhar mercado, ou existe uma oportunidade para otimizar o nosso mix de serviços?"})
+        
+        is_saudavel = 'Vazamento de Lucro' not in [i['titulo'] for i in self.gerar_sinfonia_de_insights_sapiens()]
+        if is_saudavel and df['Margem'].mean() > 35:
+            perguntas.append({'icone': '🚀', 'titulo': 'Sobre o Próximo Horizonte de Crescimento', 'pergunta': "A operação demonstra uma saúde excepcional. Com esta base sólida, qual seria o próximo 'salto quântico': expandir para um novo tipo de serviço, ou aprofundar a rentabilidade nos clientes mais estratégicos que já possuímos?"})
 
-# --- UI PRINCIPAL v7.2 ---
-st.markdown("<h1 style='text-align: center; margin-bottom: 20px;'>MAESTRO QUÂNTICO</h1>", unsafe_allow_html=True)
+        return perguntas
+    
+    def analisar_fluxo_de_caixa(self):
+        df = self.estado_quantum
+        if df.empty: return {'dados': [], 'analise': "Sem dados para análise de fluxo de caixa."}
+        df_fluxo = df.copy()
+        df_fluxo['Periodo'] = pd.to_datetime(df_fluxo['Ano'].astype(str) + '-' + df_fluxo['Mes'].astype(str) + '-01')
+        fluxo = df_fluxo.groupby('Periodo').agg(Receber=('Receita', 'sum'), Pagar=('Custo', 'sum')).reset_index()
+        fluxo['Saldo'] = fluxo['Receber'] - fluxo['Pagar']
+        fluxo['name'] = fluxo['Periodo'].dt.strftime('%b/%Y')
+        saldo_total = fluxo['Saldo'].sum()
+        analise = f"O fluxo de caixa operacional do período é **{'POSITIVO' if saldo_total >= 0 else 'NEGATIVO'} em R$ {abs(saldo_total):,.2f}**."
+        return {'dados': fluxo.to_dict('records'), 'analise': analise}
 
-with st.sidebar:
-    st.markdown("## 🔮 Controles da Orquestra")
-    dados_disponiveis = engine.dados_originais
-    if not dados_disponiveis.empty:
-        filters = {'Ano': st.selectbox("Ano", ["TODOS"] + sorted(dados_disponiveis['Ano'].unique())),
-                   'Mes': st.selectbox("Mês", ["TODOS"] + sorted(dados_disponiveis['Mes'].unique())),
-                   'Nivel_Consultor': st.multiselect("Nível do Consultor", ["TODOS"] + sorted(dados_disponiveis['Nivel_Consultor'].unique()), default=["TODOS"]),
-                   'Negocio_Projeto': st.multiselect("Tipo de Negócio", ["TODOS"] + sorted(dados_disponiveis['Negocio_Projeto'].unique()), default=["TODOS"]),
-                   'Consultor': st.multiselect("Consultor", ["TODOS"] + sorted(dados_disponiveis['Consultor'].unique()), default=["TODOS"])}
-        df_filtrado = engine.aplicar_filtros(filters)
-    else:
-        df_filtrado = pd.DataFrame()
-
-# --- v7.2: Definição das Abas Corrigida e Robusta ---
-tab_definitions = {
-    "Painel de Comando": "bi-grid-1x2-fill",
-    "Matriz de Valor": "bi-gem",
-    "Ecossistema de Talentos": "bi-people-fill",
-    "Fechamento Operacional": "bi-bank",
-    "Análise Delta": "bi-arrows-collapse-vertical",
-    "Oráculo Prescritivo": "bi-lightbulb-fill"
-}
-tabs_rendered = st.tabs(list(tab_definitions.keys()))
-
-
-# --- ABA 1: PAINEL DE COMANDO QUÂNTICO ---
-with tabs_rendered[0]:
-    st.markdown(f"### <i class='{tab_definitions['Painel de Comando']}'></i> Painel de Comando", unsafe_allow_html=True)
-    if df_filtrado.empty:
-        st.warning("Nenhum dado encontrado com os filtros atuais. Exibindo layout com dados de exemplo.")
-        kpis = {'receita': 0, 'lucro': 0, 'margem': 0, 'horas_realizadas': 0, 'horas_delta': 0}
-    else:
-        kpis = {
-            'receita': df_filtrado['Receita_Total'].sum(), 
-            'lucro': df_filtrado['Lucro_Total'].sum(), 
-            'margem': df_filtrado[df_filtrado['Receita_Total'] > 0]['Margem_Percentual'].mean() if not df_filtrado[df_filtrado['Receita_Total'] > 0].empty else 0,
-            'horas_realizadas': df_filtrado['Horas_Realizadas'].sum(),
-            'horas_delta': (df_filtrado['Horas_Previstas'] - df_filtrado['Horas_Realizadas']).sum()
+    def calcular_metricas_consolidadas(self):
+        df = self.estado_quantum
+        if df.empty: return {'receita': 0, 'lucro': 0, 'margem': 0, 'projetos': 0, 'consultores': 0, 'clientes': 0}
+        return {
+            'receita': df['Receita'].sum(), 'lucro': df['Lucro'].sum(), 
+            'margem': df['Margem'].mean(), 'projetos': df['Projeto'].nunique(),
+            'consultores': df['Consultor'].nunique(), 'clientes': df['Cliente'].nunique()
         }
 
-    st.markdown('<div class="kpi-container">', unsafe_allow_html=True)
-    def render_kpi(title, value, formatter, delta=None, delta_text_suffix="vs. Orçado"):
-        delta_html = ""
-        if delta is not None:
-            if delta >= 0:
-                delta_class = "kpi-delta-gain"
-                delta_icon = "bi-arrow-up-short"
+# ═══════════════════════════════════════════════════════════════════════════════
+# ORQUESTRAÇÃO PRINCIPAL E INTERFACE STREAMLIT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+st.markdown('<div class="header-premium"><div class="logo-maestro">🔮 MAESTRO FAROL</div><div class="tagline">A Orquestra de Realidades para a Gestão de Negócios</div></div>', unsafe_allow_html=True)
+
+dados_universo = carregar_universo_de_dados()
+
+if not dados_universo.empty:
+    crq = CoreQuantumReasoning(dados_universo)
+
+    with st.sidebar:
+        st.markdown("### 🧭 Controles do Universo")
+        anos_disponiveis = ["TODOS"] + sorted(dados_universo['Ano'].unique().tolist())
+        meses_disponiveis = ["TODOS"] + sorted(dados_universo['Mes'].unique().tolist())
+        
+        ano_sel = st.selectbox("Ano", anos_disponiveis, index=0)
+        mes_sel = st.selectbox("Mês", meses_disponiveis, index=0)
+        cons_sel = st.multiselect("Consultores", ["TODOS"] + sorted(dados_universo['Consultor'].unique().tolist()), default=["TODOS"])
+        cli_sel = st.multiselect("Clientes", ["TODOS"] + sorted(dados_universo['Cliente'].unique().tolist()), default=["TODOS"])
+
+    filtros = {'mes': mes_sel, 'ano': ano_sel, 'consultores': cons_sel, 'clientes': cli_sel}
+    crq.aplicar_colapso_quantico(filtros)
+    
+    metricas = crq.calcular_metricas_consolidadas()
+    insights = crq.gerar_sinfonia_de_insights_sapiens()
+    perguntas = crq.gerar_perguntas_socraticas()
+    fluxo_caixa = crq.analisar_fluxo_de_caixa()
+
+    tab_exec, tab_ia, tab_soc, tab_fec, tab_fluxo, tab_comp, tab_cmd = st.tabs([
+        "🎯 Visão Executiva", "🧠 IA Preditiva", "❓ Perguntas Estratégicas", 
+        "💰 Fechamento", "💸 Fluxo de Caixa", "📊 Comparativo", "🎤 Comandos"
+    ])
+
+    with tab_exec:
+        st.markdown('<div class="ceo-dashboard">', unsafe_allow_html=True)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("💰 Receita Total", f"R$ {metricas['receita']:,.0f}")
+        c2.metric("📈 Lucro Líquido", f"R$ {metricas['lucro']:,.0f}")
+        c3.metric("📊 Margem Média", f"{metricas['margem']:.1f}%")
+        c4.metric("📁 Projetos Ativos", metricas['projetos'])
+        st.markdown("---")
+        rec_por_cliente = crq.estado_quantum.groupby('Cliente')['Receita'].sum().sort_values(ascending=False).head(10)
+        fig = px.bar(rec_por_cliente, x=rec_por_cliente.values, y=rec_por_cliente.index, orientation='h', title="Top 10 Clientes por Receita", template='plotly_dark')
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+        st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
+    with tab_ia:
+        if insights:
+            for i in insights:
+                st.markdown(f'<div class="prescription-card {i["prioridade"]}">', unsafe_allow_html=True)
+                st.markdown(f'<h4 class="prescription-title"><span class="prescription-icon">{i["icone"]}</span> {i["titulo"]}</h4>', unsafe_allow_html=True)
+                st.markdown(f"**Análise do Maestro:** {i['analise']}")
+                st.markdown(f"**Diretriz Recomendada:**\n{i['prescricao']}")
+                st.markdown('</div>', unsafe_allow_html=True)
+
+    with tab_soc:
+        if perguntas:
+            for p in perguntas:
+                st.markdown('<div class="socratic-card">', unsafe_allow_html=True)
+                st.markdown(f'<p class="socratic-title"><span class="prescription-icon">{p["icone"]}</span> {p["titulo"]}</p>', unsafe_allow_html=True)
+                st.markdown(f"<blockquote>{p['pergunta']}</blockquote>")
+                st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            st.info("No período atual, os dados são conclusivos e não levantaram dilemas estratégicos que exijam reflexão socrática.")
+
+    with tab_fec:
+        st.markdown("### 💰 Fechamento por Consultor e Cliente")
+        df_fechamento = crq.estado_quantum.groupby(['Consultor', 'Cliente']).agg(Receita=('Receita', 'sum'), Custo=('Custo', 'sum'), Lucro=('Lucro', 'sum')).reset_index()
+        st.dataframe(df_fechamento.style.format({'Receita': 'R$ {:,.2f}', 'Custo': 'R$ {:,.2f}', 'Lucro': 'R$ {:,.2f}'}), use_container_width=True)
+
+    with tab_fluxo:
+        st.markdown(fluxo_caixa['analise'], unsafe_allow_html=True)
+        if fluxo_caixa['dados']:
+            fig = px.bar(fluxo_caixa['dados'], x='name', y=['Receber', 'Pagar'], 
+                         title="A Receber vs. A Pagar por Período", barmode='group',
+                         labels={'name': ''}, template='plotly_dark', color_discrete_map={'Receber': '#4CAF50', 'Pagar': '#FF4500'})
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
+
+    with tab_comp:
+        st.markdown("### ⚖️ Comparativo de Realidades")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("##### Período 1")
+            ano1 = st.selectbox("Ano 1", sorted(dados_universo['Ano'].unique()))
+            mes1 = st.selectbox("Mês 1", sorted(dados_universo['Mes'].unique()))
+        with c2:
+            st.markdown("##### Período 2")
+            ano2 = st.selectbox("Ano 2", sorted(dados_universo['Ano'].unique()), index=min(1, len(dados_universo['Ano'].unique())-1))
+            mes2 = st.selectbox("Mês 2", sorted(dados_universo['Mes'].unique()), index=min(1, len(dados_universo['Mes'].unique())-1))
+        
+        if st.button("Comparar Realidades", type="primary"):
+            df1 = dados_universo[(dados_universo['Ano'] == ano1) & (dados_universo['Mes'] == mes1)]
+            df2 = dados_universo[(dados_universo['Ano'] == ano2) & (dados_universo['Mes'] == mes2)]
+            
+            if not df1.empty and not df2.empty:
+                m1_lucro = df1['Lucro'].sum()
+                m2_lucro = df2['Lucro'].sum()
+                delta_lucro = m2_lucro - m1_lucro
+                
+                st.metric("Variação do Lucro Líquido", f"R$ {m2_lucro:,.2f}", f"R$ {delta_lucro:,.2f}")
+                
+                narrativa = f"Ao comparar {mes2}/{ano2} com {mes1}/{ano1}, observamos uma variação de **R$ {delta_lucro:,.2f}** no lucro. "
+                
+                # Análise de Contribuição por Cliente
+                lucro_cli1 = df1.groupby('Cliente')['Lucro'].sum()
+                lucro_cli2 = df2.groupby('Cliente')['Lucro'].sum()
+                df_comp = pd.concat([lucro_cli1, lucro_cli2], axis=1, keys=['P1', 'P2']).fillna(0)
+                df_comp['Variacao'] = df_comp['P2'] - df_comp['P1']
+                
+                maior_ganho = df_comp[df_comp['Variacao'] > 0].sort_values('Variacao', ascending=False).head(1)
+                maior_perda = df_comp[df_comp['Variacao'] < 0].sort_values('Variacao', ascending=True).head(1)
+                
+                if not maior_ganho.empty:
+                    narrativa += f"O principal vetor positivo foi o cliente **{maior_ganho.index[0]}**, que contribuiu com um aumento de **R$ {maior_ganho['Variacao'].iloc[0]:,.2f}**. "
+                if not maior_perda.empty:
+                     narrativa += f"Por outro lado, o resultado foi pressionado pelo cliente **{maior_perda.index[0]}**, com uma queda de **R$ {abs(maior_perda['Variacao'].iloc[0]):,.2f}**. "
+
+                st.info(narrativa)
             else:
-                delta_class = "kpi-delta-loss"
-                delta_icon = "bi-arrow-down-short"
-            delta_html = f'<div class="{delta_class}"><i class="{delta_icon}"></i> {abs(delta):.0f}h {delta_text_suffix}</div>'
-        st.markdown(f'<div class="kpi-card"><div class="kpi-title">{title}</div><div class="kpi-value">{formatter.format(value)}</div>{delta_html}</div>', unsafe_allow_html=True)
+                st.warning("Dados não disponíveis para um ou ambos os períodos selecionados.")
 
-    render_kpi("Receita Total", kpis['receita'], "R$ {:,.0f}")
-    render_kpi("Lucro Total", kpis['lucro'], "R$ {:,.0f}")
-    render_kpi("Margem Média", kpis['margem'], "{:.1f}%")
-    render_kpi("Horas Realizadas", kpis['horas_realizadas'], "{:,.0f}h", delta=kpis['horas_delta'])
-    st.markdown('</div>', unsafe_allow_html=True)
+    with tab_cmd:
+        st.markdown('<div class="voice-section">', unsafe_allow_html=True)
+        st.markdown("### 🎤 Simulador de Comandos de Voz")
+        st.text_input("Digite um comando em linguagem natural:", placeholder="Ex: 'qual a receita do cliente X?'", key="voice_cmd")
+        st.info("O motor de Processamento de Linguagem Natural está a ser calibrado.")
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if not df_filtrado.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("<h6><i class='bi bi-pie-chart-fill'></i> Lucratividade por Tipo de Negócio</h6>", unsafe_allow_html=True)
-            lucro_negocio = df_filtrado.groupby('Negocio_Projeto')['Lucro_Total'].sum().nlargest(7)
-            if not lucro_negocio.empty:
-                fig = px.pie(lucro_negocio, values='Lucro_Total', names=lucro_negocio.index, hole=0.6)
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
-                st.plotly_chart(fig, use_container_width=True)
-        with c2:
-            st.markdown("<h6><i class='bi bi-bar-chart-line-fill'></i> Eficiência por Tipo de Negócio</h6>", unsafe_allow_html=True)
-            eficiencia_agg = df_filtrado.groupby('Negocio_Projeto')['Eficiencia_Percentual'].mean()
-            if not eficiencia_agg.empty:
-                fig = px.bar(eficiencia_agg, y=eficiencia_agg.values, x=eficiencia_agg.index, text_auto='.1f')
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='white')
-                st.plotly_chart(fig, use_container_width=True)
-
-# --- ABA 2: MATRIZ DE VALOR ---
-with tabs_rendered[1]:
-    st.markdown(f"### <i class='{tab_definitions['Matriz de Valor']}'></i> Matriz de Valor Real", unsafe_allow_html=True)
-    if not df_filtrado.empty:
-        # Lógica da Matriz de Valor aqui
-        pass
-    else:
-        st.info("Filtre os dados para visualizar a Matriz de Valor.")
-
-# --- ABA 3: ECOSSISTEMA DE TALENTOS ---
-with tabs_rendered[2]:
-    st.markdown(f"### <i class='{tab_definitions['Ecossistema de Talentos']}'></i> Ecossistema de Talentos", unsafe_allow_html=True)
-    if not df_filtrado.empty:
-        # Lógica do Ecossistema de Talentos aqui
-        pass
-    else:
-        st.info("Filtre os dados para visualizar o Ecossistema de Talentos.")
-
-# --- ABA 4: FECHAMENTO OPERACIONAL ---
-with tabs_rendered[3]:
-    st.markdown(f"### <i class='{tab_definitions['Fechamento Operacional']}'></i> Fechamento Operacional", unsafe_allow_html=True)
-    if not df_filtrado.empty:
-        c1, c2 = st.columns(2)
-        with c1:
-            st.subheader("💰 A Pagar (Consultores)")
-            df_pagar = df_filtrado.groupby(['Consultor', 'Nivel_Consultor']).agg(Custo_Total=('Custo_Total', 'sum'), Horas_Realizadas=('Horas_Realizadas', 'sum')).reset_index()
-            st.dataframe(df_pagar.style.format({'Custo_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_pagar.to_excel(output, index=False); st.download_button("📥 Exportar (A Pagar)", output.getvalue(), "a_pagar.xlsx")
-        with c2:
-            st.subheader("💳 A Receber (Clientes)")
-            df_receber = df_filtrado.groupby('Cliente').agg(Receita_Total=('Receita_Total', 'sum'), Horas_Realizadas=('Horas_Realizadas', 'sum')).reset_index()
-            st.dataframe(df_receber.style.format({'Receita_Total': 'R$ {:,.2f}'}), use_container_width=True)
-            output = io.BytesIO(); df_receber.to_excel(output, index=False); st.download_button("📥 Exportar (A Receber)", output.getvalue(), "a_receber.xlsx")
-    else:
-        st.info("Filtre os dados para gerar os relatórios de fechamento.")
-
-# --- ABA 5: ANÁLISE DELTA ---
-with tabs_rendered[4]:
-    st.markdown(f"### <i class='{tab_definitions['Análise Delta']}'></i> Análise Delta", unsafe_allow_html=True)
-    if not engine.dados_originais.empty:
-        # Lógica da Análise Delta aqui
-        pass
-    else:
-        st.info("Dados insuficientes para realizar uma análise comparativa.")
-
-# --- ABA 6: ORÁCULO PRESCRITIVO ---
-with tabs_rendered[5]:
-    st.markdown(f"### <i class='{tab_definitions['Oráculo Prescritivo']}'></i> Oráculo Prescritivo", unsafe_allow_html=True)
-    if not df_filtrado.empty:
-        # Lógica do Oráculo Prescritivo aqui
-        pass
-    else:
-        st.info("Filtre os dados para que o Oráculo possa gerar prescrições.")
+else:
+    st.error("A sinfonia está em silêncio. Não foi possível carregar o universo de dados. Verifique as credenciais e a conexão com o banco.")
