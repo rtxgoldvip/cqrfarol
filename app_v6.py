@@ -80,14 +80,13 @@ class DatabaseConnector:
     def __init__(self):
         self.SECRETS_AVAILABLE = False
         try:
-            # --- CORREÇÃO 1: Usando o caminho "db_credentials" ---
+            # Lendo do caminho correto
             self.server = st.secrets["db_credentials"]["server"]
             self.database = st.secrets["db_credentials"]["database"]
             self.username = st.secrets["db_credentials"]["username"]
             self.password = st.secrets["db_credentials"]["password"]
             self.SECRETS_AVAILABLE = True
         except Exception as e:
-            # Erro ao ler os secrets, self.SECRETS_AVAILABLE = False
             pass
         
         self.conn = None
@@ -103,19 +102,18 @@ class DatabaseConnector:
             return False 
             
         try:
-            # --- CORREÇÃO 2: Usando a string de conexão do seu extrator ---
+            # Usando a string de conexão do extrator
             conn_str = (
                 f"DRIVER={{ODBC Driver 17 for SQL Server}};"
                 f"SERVER={self.server};"
                 f"DATABASE={self.database};"
                 f"UID={self.username};"
                 f"PWD={self.password};"
-                f"TrustServerCertificate=yes;" # Adicionado
+                f"TrustServerCertificate=yes;"
             )
-            self.conn = pyodbc.connect(conn_str, timeout=30) # Timeout aumentado
+            self.conn = pyodbc.connect(conn_str, timeout=30)
             return True
         except Exception as e:
-            # Armazena o erro de conexão
             self.connection_error = str(e)
             return False
 
@@ -193,7 +191,6 @@ class QuantumAnalyticsEngine:
                 icon = "ℹ️"
                 return (df, message, icon, False)
         
-        # Se a conexão falhou (connect() retornou False)
         if not db.SECRETS_AVAILABLE:
             message = "Secrets não configurados. Simulação."
             icon = "🔒"
@@ -346,6 +343,7 @@ engine = init_engine()
 voice_processor = VoiceCommandProcessor()
 
 # --- LÓGICA DE FILTROS (com st.session_state) ---
+# Inicializa o estado dos filtros na primeira execução
 if 'filtros_aplicados' not in st.session_state:
     st.session_state.filtros_aplicados = {
         "ano": "TODOS",
@@ -369,7 +367,8 @@ with st.sidebar:
     else:
         st.sidebar.error(engine.status_message, icon=engine.status_icon)
         
-    if engine.is_mock_data:
+    if engine.is_mock_data and engine.status_message != "Secrets não configurados. Simulação.":
+        # Só mostra o "toast" se não for um problema de secrets (para não poluir)
         st.toast("Usando dados de simulação interna.", icon="🔬")
 
     
@@ -386,17 +385,32 @@ with st.sidebar:
     clientes = sorted(dados_disponiveis['Cliente'].unique().tolist()) if not dados_disponiveis.empty else []
     projetos = sorted(dados_disponiveis['Projeto'].unique().tolist()) if not dados_disponiveis.empty else []
 
-    # Selectbox para Ano
-    st.selectbox("Ano", ["TODOS"] + anos, 
+    # --- LÓGICA DE DEFAULT À PROVA DE FALHAS ---
+    
+    # 1. Prepara as listas de opções
+    ano_options = ["TODOS"] + anos
+    mes_options = ["TODOS"] + meses
+
+    # 2. Pega o default salvo e garante que é string
+    default_ano = str(st.session_state.filtros_aplicados["ano"])
+    default_mes = str(st.session_state.filtros_aplicados["mes"])
+
+    # 3. Se o default salvo não estiver mais nas opções, reseta para "TODOS"
+    if default_ano not in ano_options:
+        default_ano = "TODOS"
+    if default_mes not in mes_options:
+        default_mes = "TODOS"
+
+    # 4. Passa as opções e o default seguro para os widgets
+    st.selectbox("Ano", ano_options, 
                  key="filtro_ano", 
-                 default=st.session_state.filtros_aplicados["ano"])
+                 default=default_ano)
     
-    # Selectbox para Mês
-    st.selectbox("Mês", ["TODOS"] + meses, 
+    # Corrigido o typo "filtros_aplicADOS"
+    st.selectbox("Mês", mes_options, 
                  key="filtro_mes", 
-                 default=st.session_state.filtros_aplicADOS["mes"])
+                 default=default_mes)
     
-    # Multiselects
     st.multiselect("Consultores", ["TODOS"] + consultores, 
                    key="filtro_consultores", 
                    default=st.session_state.filtros_aplicados["consultores"])
@@ -407,7 +421,6 @@ with st.sidebar:
                    key="filtro_projetos", 
                    default=st.session_state.filtros_aplicados["projetos"])
 
-    # O botão "Aplicar Filtros" é o que gartilha o rerun.
     if st.button("Aplicar Filtros", use_container_width=True, type="primary"):
         st.session_state.filtros_aplicados = {
             "ano": st.session_state.filtro_ano,
