@@ -308,7 +308,7 @@ def run_query(query, _conn):
         return pd.DataFrame()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# MOTOR DE RACIOCÍNIO QUÂNTICO (CRQ) - NÚCLEO INTELIGENTE (MODIFICADO)
+# MOTOR DE RACIOCÍNIO QUÂNTICO (CRQ) - NÚCLEO INTELIGENTE (CORRIGIDO)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class CoreQuantumReasoning:
@@ -321,7 +321,9 @@ class CoreQuantumReasoning:
         self.conn = init_connection()
         if self.conn:
             with st.spinner('🌌 Carregando Universo de Dados do Banco...'):
-                self.dados_universo = self_load_universo_dados()
+                # ----------------- CORREÇÃO AQUI -----------------
+                self.dados_universo = self.load_universo_dados()
+                # ---------------------------------------------------
         else:
             st.error("Falha na inicialização do CRQ: Conexão com banco de dados falhou.")
             self.dados_universo = pd.DataFrame() # Inicia vazio
@@ -763,7 +765,8 @@ class CoreQuantumReasoning:
                 'hrs_real': 0, 'hrs_prev': 0, 'eficiencia': 0,
                 'roi_hora': 0, 'consultores': 0, 'clientes': 0,
                 'projetos': 0, 'score': 0,
-                'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0
+                'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
+                'gap_faturamento': 0, 'gap_custo': 0
             }
         
         receita_total = df['Receita'].sum()
@@ -857,13 +860,13 @@ class SocraticQuestioningEngine:
             pior_tipo = marg_tipo.idxmin()
             diferenca = marg_tipo[melhor_tipo] - marg_tipo[pior_tipo]
             
-            if diferenca > 10:
+            if diferenca > 0.1: # 10%
                 perguntas.append({
                     'categoria': 'ESTRATÉGIA',
-                    'pergunta': f'Seus projetos de "{melhor_tipo}" têm margem {diferenca:.1f}% superior a "{pior_tipo}". '
+                    'pergunta': f'Seus projetos de "{melhor_tipo}" têm margem {diferenca*100:.1f}% superior a "{pior_tipo}". '
                                f'Esta disparidade é resultado de uma estratégia consciente de penetração de mercado, '
                                f'ou revela um custo oculto que ainda não identificamos?',
-                    'contexto': f'Margem "{melhor_tipo}": {marg_tipo[melhor_tipo]:.1f}% vs "{pior_tipo}": {marg_tipo[pior_tipo]:.1f}%',
+                    'contexto': f'Margem "{melhor_tipo}": {marg_tipo[melhor_tipo]*100:.1f}% vs "{pior_tipo}": {marg_tipo[pior_tipo]*100:.1f}%',
                     'profundidade': 'ESTRATÉGICA',
                     'icone': '💎',
                     'dados': {
@@ -878,10 +881,10 @@ class SocraticQuestioningEngine:
         if margem_media < 0.35: # Ajustado para fração 0.xx
             perguntas.append({
                 'categoria': 'FINANCEIRO',
-                'pergunta': f'Sua margem média de {margem_media:.1f}% está abaixo do ideal de 40-50% para consultorias. '
+                'pergunta': f'Sua margem média de {margem_media*100:.1f}% está abaixo do ideal de 40-50% para consultorias. '
                            f'O que você acha que está consumindo essa rentabilidade? '
                            f'São custos operacionais invisíveis, subprecificação, ou ineficiências na entrega?',
-                'contexto': f'Margem atual: {margem_media:.1f}% | Meta recomendada: 45%',
+                'contexto': f'Margem atual: {margem_media*100:.1f}% | Meta recomendada: 45%',
                 'profundidade': 'CRÍTICA',
                 'icone': '⚠️',
                 'dados': {'margem_media': margem_media}
@@ -1086,12 +1089,12 @@ with st.sidebar:
     col_m, col_a = st.columns(2)
     with col_m:
         # Usar o último mês como padrão
-        mes_default = meses_opts[-1] if meses_opts else 1
-        mes_sel = st.selectbox("Mês", meses_opts, index=len(meses_opts)-1, key="mes")
+        mes_default_idx = len(meses_opts) - 1 if meses_opts else 0
+        mes_sel = st.selectbox("Mês", meses_opts, index=mes_default_idx, key="mes")
     with col_a:
         # Usar o último ano como padrão
-        ano_default = anos_opts[-1] if anos_opts else 2025
-        ano_sel = st.selectbox("Ano", anos_opts, index=len(anos_opts)-1, key="ano")
+        ano_default_idx = len(anos_opts) - 1 if anos_opts else 0
+        ano_sel = st.selectbox("Ano", anos_opts, index=ano_default_idx, key="ano")
     
     cons_sel = st.multiselect("👥 Consultores", consultores_opts, default=["TODOS"])
     cli_sel = st.multiselect("🏢 Clientes", clientes_opts, default=["TODOS"])
@@ -1174,7 +1177,7 @@ with tab1:
     with col3:
         st.metric(
             "📈 Margem Média",
-            f"{metricas['margem']:.1f}%",
+            f"{metricas['margem']*100:.1f}%", # Convertendo fração para %
             delta_color="normal" if metricas['margem'] > 0.4 else "inverse",
             help="Margem percentual média (Contábil)"
         )
@@ -1209,15 +1212,18 @@ with tab1:
                 Margem_Media=('Margem', 'mean')
             ).nlargest(10, 'Receita_Total').sort_values('Receita_Total')
             
+            # Converter margem para % para o gráfico
+            rec_cliente['Margem_Media_Perc'] = rec_cliente['Margem_Media'] * 100
+            
             fig = px.bar(
                 rec_cliente,
                 x='Receita_Total',
                 y=rec_cliente.index,
                 orientation='h',
-                color='Margem_Media',
+                color='Margem_Media_Perc',
                 color_continuous_scale='Blues',
                 text='Receita_Total',
-                hover_data=['Margem_Media']
+                hover_data={'Margem_Media_Perc': ':.1f%'}
             )
             
             fig.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
@@ -1228,7 +1234,7 @@ with tab1:
                 xaxis_title="Receita (R$)",
                 yaxis_title="",
                 height=400,
-                coloraxis_colorbar=dict(title="Margem Média")
+                coloraxis_colorbar=dict(title="Margem Média %")
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
@@ -1246,15 +1252,23 @@ with tab1:
                 Score_Performance=('Score_Performance', 'mean')
             ).sort_values('Receita', ascending=False)
             
+            # Converter margem para % para o gráfico
+            perf_cons['Margem_Media_Perc'] = perf_cons['Margem_Media'] * 100
+            
             fig = px.scatter(
                 perf_cons,
                 x='Receita',
-                y='Margem_Media',
+                y='Margem_Media_Perc',
                 size='Horas_Trabalhadas',
                 color='ROI_Hora',
                 hover_name=perf_cons.index,
                 color_continuous_scale='Viridis',
-                size_max=60
+                size_max=60,
+                hover_data={
+                    'Margem_Media_Perc': ':.1f%',
+                    'Receita': ':,.0f',
+                    'Horas_Trabalhadas': ':.0f'
+                }
             )
             
             fig.update_layout(
@@ -1271,7 +1285,8 @@ with tab1:
             with st.expander("Ver dados detalhados dos consultores"):
                 st.dataframe(perf_cons.style.format({
                     'Receita': 'R$ {:,.2f}',
-                    'Margem_Media': '{:.1f}%',
+                    'Margem_Media': '{:.1%}',
+                    'Margem_Media_Perc': '{:.1f}%',
                     'Horas_Trabalhadas': '{:.0f}h',
                     'ROI_Hora': 'R$ {:,.2f}',
                     'Score_Performance': '{:.1f}'
@@ -1466,36 +1481,55 @@ with tab4:
     
     if not df_filtrado.empty:
         # TELA 4: Detecção de Sangria
-        df_sangria = df_filtrado[
-            (df_filtrado['TipoProj'] == 'PROJETO FECHADO') & # Conforme Spec
-            (df_filtrado['Hrs_Real'] > df_filtrado['Hrs_Prev'])
-        ]
         
-        if not df_sangria.empty:
-            df_sangria['Desvio_Horas'] = df_sangria['Hrs_Real'] - df_sangria['Hrs_Prev']
-            df_sangria['Perc_Sangria'] = (df_sangria['Desvio_Horas'] / df_sangria['Hrs_Prev']) * 100
+        # O nome do tipo de projeto pode variar. Vamos ser flexíveis.
+        tipo_fechado = "PROJETO FECHADO"
+        if tipo_fechado not in df_filtrado['TipoProj'].unique():
+             # Tenta achar um nome similar se o nome exato falhar
+             tipos_proj = df_filtrado['TipoProj'].unique()
+             matches = [t for t in tipos_proj if "FECHADO" in t.upper()]
+             if matches:
+                 tipo_fechado = matches[0]
+                 st.info(f"Usando tipo de projeto '{tipo_fechado}' para análise de sangria.")
+             else:
+                 st.warning("Não foi possível encontrar o tipo 'PROJETO FECHADO' nos dados.")
+                 tipo_fechado = None
+
+        if tipo_fechado:
+            df_sangria = df_filtrado[
+                (df_filtrado['TipoProj'] == tipo_fechado) & 
+                (df_filtrado['Hrs_Real'] > df_filtrado['Hrs_Prev']) &
+                (df_filtrado['Hrs_Prev'] > 0) # Evitar divisão por zero
+            ]
             
-            df_sangria_view = df_sangria[[
-                'Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real', 
-                'Desvio_Horas', 'Perc_Sangria', 'Receita', 'Custo', 'Lucro', 'Margem'
-            ]].sort_values('Desvio_Horas', ascending=False)
-            
-            st.error(f"Identificados {len(df_sangria_view)} projetos fechados com estouro de horas (sangria).")
-            
-            st.dataframe(df_sangria_view.style.format({
-                'Hrs_Prev': '{:.0f}h',
-                'Hrs_Real': '{:.0f}h',
-                'Desvio_Horas': '+{:.0f}h',
-                'Perc_Sangria': '{:.1f}%',
-                'Receita': 'R$ {:,.2f}',
-                'Custo': 'R$ {:,.2f}',
-                'Lucro': 'R$ {:,.2f}',
-                'Margem': '{:.1f}%'
-            }).background_gradient(cmap='Reds', subset=['Desvio_Horas', 'Perc_Sangria'])
-              .background_gradient(cmap='RdYlGn', subset=['Lucro', 'Margem']))
+            if not df_sangria.empty:
+                df_sangria = df_sangria.copy() # Evitar SettingWithCopyWarning
+                df_sangria['Desvio_Horas'] = df_sangria['Hrs_Real'] - df_sangria['Hrs_Prev']
+                df_sangria['Perc_Sangria'] = (df_sangria['Desvio_Horas'] / df_sangria['Hrs_Prev']) * 100
+                
+                df_sangria_view = df_sangria[[
+                    'Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real', 
+                    'Desvio_Horas', 'Perc_Sangria', 'Receita', 'Custo', 'Lucro', 'Margem'
+                ]].sort_values('Desvio_Horas', ascending=False)
+                
+                st.error(f"Identificados {len(df_sangria_view)} projetos fechados com estouro de horas (sangria).")
+                
+                st.dataframe(df_sangria_view.style.format({
+                    'Hrs_Prev': '{:.0f}h',
+                    'Hrs_Real': '{:.0f}h',
+                    'Desvio_Horas': '+{:.0f}h',
+                    'Perc_Sangria': '{:.1f}%',
+                    'Receita': 'R$ {:,.2f}',
+                    'Custo': 'R$ {:,.2f}',
+                    'Lucro': 'R$ {:,.2f}',
+                    'Margem': '{:.1%}'
+                }).background_gradient(cmap='Reds', subset=['Desvio_Horas', 'Perc_Sangria'])
+                  .background_gradient(cmap='RdYlGn', subset=['Lucro', 'Margem']))
+            else:
+                st.success("✅ Nenhum projeto fechado com estouro de horas detectado neste período.")
         else:
-            st.success("✅ Nenhum projeto fechado com estouro de horas detectado neste período.")
-            
+            st.warning("Não foi possível executar a análise de sangria (tipo de projeto não encontrado).")
+
     st.markdown("---")
     st.markdown("### 🎯 Matriz de Correlação (Entrelaçamento Quântico)")
     
