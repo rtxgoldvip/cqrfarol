@@ -15,11 +15,11 @@ import re
 import pyodbc
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CONFIGURAÇÃO DA PÁGINA - DESIGN PREMIUM
+# CONFIGURAÇÃO DA PÁGINA - DESIGN PREMIUM (COM NOVO TÍTULO)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="MAESTRO FAROL - Quantum Business Intelligence",
+    page_title="MAESTRO FAROL - Autonomous Insight System", # <-- MUDANÇA DE BRANDING
     page_icon="🎯",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -321,9 +321,7 @@ class CoreQuantumReasoning:
         self.conn = init_connection()
         if self.conn:
             with st.spinner('🌌 Carregando Universo de Dados do Banco...'):
-                # ----------------- CORREÇÃO AQUI -----------------
                 self.dados_universo = self.load_universo_dados()
-                # ---------------------------------------------------
         else:
             st.error("Falha na inicialização do CRQ: Conexão com banco de dados falhou.")
             self.dados_universo = pd.DataFrame() # Inicia vazio
@@ -367,9 +365,16 @@ class CoreQuantumReasoning:
                     st.warning(f"Tabela '{name}' está vazia ou falhou ao carregar.")
         
         # 3. Verificar se as tabelas FATO e DIM principais existem
-        if 'g' not in dfs or dfs['g'].empty or 'p' not in dfs or 'tec' not in dfs:
-            st.error("Tabelas Fato (Tb_GestorFin2) ou Dimensões (tb_Proj, tb_tec) estão vazias. Análise impossível.")
+        if 'g' not in dfs or dfs['g'].empty:
+            st.error("Tabela Fato (Tb_GestorFin2) está vazia. Análise impossível.")
             return pd.DataFrame()
+        
+        # Garantir que as Dims não estejam vazias antes de tentar acessá-las
+        dims_criticas = ['p', 'tec', 'cli', 'tp', 'neg', 'st', 'cr', 'cp']
+        for dim in dims_criticas:
+            if dim not in dfs:
+                st.warning(f"Tabela de dimensão '{dim}' não foi carregada. Criando DataFrame vazio.")
+                dfs[dim] = pd.DataFrame() # Cria um DF vazio para evitar erros no merge
 
         # 4. Limpeza de Chaves (crucial para merges)
         # Converte chaves para numérico, tratando erros.
@@ -378,22 +383,30 @@ class CoreQuantumReasoning:
             dfs['g']['ConsultGest'] = pd.to_numeric(dfs['g']['ConsultGest'], errors='coerce')
             dfs['g']['ProjGest'] = pd.to_numeric(dfs['g']['ProjGest'], errors='coerce')
             
-            dfs['tec']['AutNumTec'] = pd.to_numeric(dfs['tec']['AutNumTec'], errors='coerce')
+            if not dfs['tec'].empty:
+                dfs['tec']['AutNumTec'] = pd.to_numeric(dfs['tec']['AutNumTec'], errors='coerce')
             
-            dfs['p']['AutNumProj'] = pd.to_numeric(dfs['p']['AutNumProj'], errors='coerce')
-            dfs['p']['CodCliProj'] = pd.to_numeric(dfs['p']['CodCliProj'], errors='coerce')
-            dfs['p']['TipoProj'] = pd.to_numeric(dfs['p']['TipoProj'], errors='coerce')
-            dfs['p']['CodNegProj'] = pd.to_numeric(dfs['p']['CodNegProj'], errors='coerce')
-            dfs['p']['StatusProj'] = pd.to_numeric(dfs['p']['StatusProj'], errors='coerce')
+            if not dfs['p'].empty:
+                dfs['p']['AutNumProj'] = pd.to_numeric(dfs['p']['AutNumProj'], errors='coerce')
+                dfs['p']['CodCliProj'] = pd.to_numeric(dfs['p']['CodCliProj'], errors='coerce')
+                dfs['p']['TipoProj'] = pd.to_numeric(dfs['p']['TipoProj'], errors='coerce')
+                dfs['p']['CodNegProj'] = pd.to_numeric(dfs['p']['CodNegProj'], errors='coerce')
+                dfs['p']['StatusProj'] = pd.to_numeric(dfs['p']['StatusProj'], errors='coerce')
             
-            dfs['cli']['AutNumCli'] = pd.to_numeric(dfs['cli']['AutNumCli'], errors='coerce')
-            dfs['tp']['AutNumTipo'] = pd.to_numeric(dfs['tp']['AutNumTipo'], errors='coerce')
-            dfs['neg']['AutNumNeg'] = pd.to_numeric(dfs['neg']['AutNumNeg'], errors='coerce')
-            dfs['st']['AutNumStatus'] = pd.to_numeric(dfs['st']['AutNumStatus'], errors='coerce')
+            if not dfs['cli'].empty:
+                dfs['cli']['AutNumCli'] = pd.to_numeric(dfs['cli']['AutNumCli'], errors='coerce')
+            if not dfs['tp'].empty:
+                dfs['tp']['AutNumTipo'] = pd.to_numeric(dfs['tp']['AutNumTipo'], errors='coerce')
+            if not dfs['neg'].empty:
+                dfs['neg']['AutNumNeg'] = pd.to_numeric(dfs['neg']['AutNumNeg'], errors='coerce')
+            if not dfs['st'].empty:
+                dfs['st']['AutNumStatus'] = pd.to_numeric(dfs['st']['AutNumStatus'], errors='coerce')
 
             # Chaves CRÍTICAS (que quebram em 2025)
-            dfs['cr']['ID'] = pd.to_numeric(dfs['cr']['ID'], errors='coerce')
-            dfs['cp']['ID'] = pd.to_numeric(dfs['cp']['ID'], errors='coerce')
+            if not dfs['cr'].empty:
+                dfs['cr']['ID'] = pd.to_numeric(dfs['cr']['ID'], errors='coerce')
+            if not dfs['cp'].empty:
+                dfs['cp']['ID'] = pd.to_numeric(dfs['cp']['ID'], errors='coerce')
 
             # Limpar colunas de data/período
             dfs['g']['Ano'] = pd.to_numeric(dfs['g']['Ano'].astype(str).str.strip(), errors='coerce')
@@ -405,18 +418,30 @@ class CoreQuantumReasoning:
 
         # 5. Executar o "Master Join" via Pandas
         with st.spinner("Entrelaçando dimensões (Joins)..."):
-            df = pd.merge(dfs['g'], dfs['tec'], left_on='ConsultGest', right_on='AutNumTec', how='left')
-            df = pd.merge(df, dfs['p'], left_on='ProjGest', right_on='AutNumProj', how='left', suffixes=('', '_proj'))
-            df = pd.merge(df, dfs['cli'], left_on='CodCliProj', right_on='AutNumCli', how='left')
-            df = pd.merge(df, dfs['tp'], left_on='TipoProj', right_on='AutNumTipo', how='left')
-            df = pd.merge(df, dfs['neg'], left_on='CodNegProj', right_on='AutNumNeg', how='left')
-            df = pd.merge(df, dfs['st'], left_on='StatusProj', right_on='AutNumStatus', how='left')
+            df = dfs['g'] # Começa com a tabela FATO
+            
+            # Funções de merge seguras
+            def safe_merge(df_left, df_right, **kwargs):
+                if df_right.empty:
+                    st.warning(f"Skipping merge: {kwargs.get('left_on')}/{kwargs.get('right_on')} (tabela direita vazia)")
+                    return df_left
+                # Garantir que as chaves de merge existam no df_left
+                left_key = kwargs.get('left_on')
+                if left_key and left_key not in df_left.columns:
+                    st.warning(f"Skipping merge: Chave '{left_key}' não encontrada no DataFrame principal.")
+                    return df_left
+                return pd.merge(df_left, df_right, **kwargs)
+
+            df = safe_merge(df, dfs['tec'], left_on='ConsultGest', right_on='AutNumTec', how='left')
+            df = safe_merge(df, dfs['p'], left_on='ProjGest', right_on='AutNumProj', how='left', suffixes=('', '_proj'))
+            df = safe_merge(df, dfs['cli'], left_on='CodCliProj', right_on='AutNumCli', how='left')
+            df = safe_merge(df, dfs['tp'], left_on='TipoProj', right_on='AutNumTipo', how='left')
+            df = safe_merge(df, dfs['neg'], left_on='CodNegProj', right_on='AutNumNeg', how='left')
+            df = safe_merge(df, dfs['st'], left_on='StatusProj', right_on='AutNumStatus', how='left')
             
             # 6. EXECUTAR OS JOINS DE CAIXA (OS QUE QUEBRAM EM 2025)
-            # Isso é INTENCIONAL. Os dados de 2025 virão como NaN (Nulo),
-            # o que permitirá à análise detectar o "Alerta Catastrófico".
-            df = pd.merge(df, dfs['cr'], left_on='IdGest2', right_on='ID', how='left', suffixes=('', '_cr'))
-            df = pd.merge(df, dfs['cp'], left_on='IdGest2', right_on='ID', how='left', suffixes=('', '_cp'))
+            df = safe_merge(df, dfs['cr'], left_on='IdGest2', right_on='ID', how='left', suffixes=('', '_cr'))
+            df = safe_merge(df, dfs['cp'], left_on='IdGest2', right_on='ID', how='left', suffixes=('', '_cp'))
 
         # 7. Mapeamento de Colunas (Spec -> Layout)
         with st.spinner("Mapeando colunas e criando métricas..."):
@@ -454,7 +479,6 @@ class CoreQuantumReasoning:
                 if col in df.columns:
                     df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
                 else:
-                    # Se uma coluna vital não foi criada (ex: falha no merge), crie-a com 0
                     df[col] = 0 
             
             # 8. Criação de dimensões quânticas (métricas avançadas do seu layout)
@@ -485,11 +509,18 @@ class CoreQuantumReasoning:
                                  bins=[0, 40, 70, 100], 
                                  labels=['CRÍTICO', 'ATENÇÃO', 'EXCELENTE'],
                                  right=True)
-
+            
+            # ----------------- CORREÇÃO DO BUG AQUI -----------------
             # Preencher NaNs em colunas de string (importante para filtros)
-            for col_str in ['Consultor', 'Cliente', 'Projeto', 'TipoProj']:
-                if col in df.columns:
-                    df[col] = df[col].fillna('N/A')
+            colunas_string_app = ['Consultor', 'Cliente', 'Projeto', 'TipoProj']
+            for col_str in colunas_string_app:
+                if col_str not in df.columns:
+                    # Se o merge falhou e a coluna nem existe, crie-a
+                    df[col_str] = 'N/A' 
+                else:
+                    # Se a coluna existe mas tem NaNs, preencha
+                    df[col_str] = df[col_str].fillna('N/A')
+            # --------------------------------------------------------
 
         st.success("Universo de Dados Carregado e Sincronizado.")
         return df
@@ -568,17 +599,24 @@ class CoreQuantumReasoning:
         })
         
         if len(perf_tipo) > 1:
-            melhor_tipo = perf_tipo['ROI_Hora'].idxmax()
-            pior_tipo = perf_tipo['ROI_Hora'].idxmin()
-            ratio = perf_tipo.loc[melhor_tipo, 'ROI_Hora'] / max(perf_tipo.loc[pior_tipo, 'ROI_Hora'], 1)
+            # Garantir que não estamos lidando com NaNs
+            perf_tipo = perf_tipo.fillna(0)
+            # Evitar divisão por zero se ROI_Hora for 0 ou negativo
+            pior_roi = max(perf_tipo['ROI_Hora'].min(), 0.01) 
+            melhor_roi = max(perf_tipo['ROI_Hora'].max(), 0)
+
+            if pior_roi > 0 and melhor_roi > 0:
+                melhor_tipo = perf_tipo['ROI_Hora'].idxmax()
+                pior_tipo = perf_tipo['ROI_Hora'].idxmin()
+                ratio = melhor_roi / pior_roi
             
-            if ratio > 1.5:
-                entrelacements['otimizacao_mix'] = {
-                    'melhor': melhor_tipo,
-                    'pior': pior_tipo,
-                    'ratio': ratio,
-                    'descricao': f"Oportunidade de otimização do mix de serviços"
-                }
+                if ratio > 1.5:
+                    entrelacements['otimizacao_mix'] = {
+                        'melhor': melhor_tipo,
+                        'pior': pior_tipo,
+                        'ratio': ratio,
+                        'descricao': f"Oportunidade de otimização do mix de serviços"
+                    }
         
         self.padroes_ocultos = entrelacements
         return entrelacements
@@ -606,9 +644,10 @@ class CoreQuantumReasoning:
         prescricoes = []
         
         # 0. ALERTA DE GAP DE CAIXA (NOVA PRESCRIÇÃO BASEADA NA ESPECIFICAÇÃO)
-        if df['Ano'].max() >= 2025:
-            df_2025 = df[df['Ano'] >= 2025]
-            if not df_2025.empty and df_2025['Caixa_Recebido'].sum() == 0 and df_2025['Caixa_Pago'].sum() == 0:
+        anos_no_filtro = df['Ano'].unique()
+        if any(ano >= 2025 for ano in anos_no_filtro):
+            df_2025_filtrado = df[df['Ano'] >= 2025]
+            if not df_2025_filtrado.empty and df_2025_filtrado['Caixa_Recebido'].sum() == 0 and df_2025_filtrado['Caixa_Pago'].sum() == 0:
                  prescricoes.append({
                     'tipo': 'ALERTA',
                     'prioridade': 'CRÍTICA',
@@ -685,9 +724,9 @@ class CoreQuantumReasoning:
                 'titulo': '💎 Otimização Estratégica do Mix',
                 'sintese': f'{info["melhor"]} é {info["ratio"]:.1f}x mais rentável',
                 'analise': f'Análise quântica revela assimetria significativa: "{info["melhor"]}" gera '
-                          f'R$ {melhor["ROI_Hora"]:.2f}/hora de lucro (margem {melhor["Margem"]:.1f}%), '
+                          f'R$ {melhor["ROI_Hora"]:.2f}/hora de lucro (margem {melhor["Margem"]*100:.1f}%), '
                           f'enquanto "{info["pior"]}" gera apenas R$ {pior["ROI_Hora"]:.2f}/hora '
-                          f'(margem {pior["Margem"]:.1f}%).',
+                          f'(margem {pior["Margem"]*100:.1f}%).',
                 'prescricao': f'1. Meta: aumentar participação de "{info["melhor"]}"\n'
                              f'2. Reposicionar comercialmente serviços tipo "{info["melhor"]}"\n'
                              f'3. Avaliar viabilidade de descontinuar "{info["pior"]}" ou repricing',
@@ -704,38 +743,40 @@ class CoreQuantumReasoning:
                 'Eficiencia': 'mean'
             }).sort_values('Score_Performance', ascending=False).fillna(0)
             
-            top_performer = perf_cons.index[0]
-            top_score = perf_cons.iloc[0]
-            bottom_performer = perf_cons.index[-1]
-            bottom_score = perf_cons.iloc[-1]
+            # Ignorar 'N/A' se for o top ou bottom
+            perf_cons = perf_cons[perf_cons.index != 'N/A']
             
-            gap = top_score['Score_Performance'] - bottom_score['Score_Performance']
-            
-            prescricoes.append({
-                'tipo': 'TALENTO',
-                'prioridade': 'ALTA',
-                'titulo': '🏆 Assimetria de Performance Detectada',
-                'sintese': f'{gap:.1f} pontos de diferença entre top e bottom performer',
-                'analise': f'**Top Performer:** {top_performer}\n'
-                          f'- Score de Performance: {top_score["Score_Performance"]:.1f}\n'
-                          f'- ROI/Hora: R$ {top_score["ROI_Hora"]:.2f}\n'
-                          f'- Margem Média: {top_score["Margem"]:.1f}%\n'
-                          f'**Necessita Desenvolvimento:** {bottom_performer}\n'
-                          f'- Score: {bottom_score["Score_Performance"]:.1f}\n'
-                          f'- ROI/Hora: R$ {bottom_score["ROI_Hora"]:.2f}\n'
-                          f'- Margem: {bottom_score["Margem"]:.1f}%',
-                'prescricao': f'1. Implementar programa de mentoria: {top_performer} → {bottom_performer}\n'
-                             f'2. Analisar metodologias e processos do top performer\n'
-                             f'3. Avaliar adequação de alocação de projetos\n'
-                             f'4. Criar plano de desenvolvimento individualizado',
-                'impacto_estimado': 'Nivelamento pode aumentar rentabilidade geral em 15-25%',
-                'confianca': 89
-            })
-        
-        # (Outras prescrições do seu layout...)
+            if len(perf_cons) > 1:
+                top_performer = perf_cons.index[0]
+                top_score = perf_cons.iloc[0]
+                bottom_performer = perf_cons.index[-1]
+                bottom_score = perf_cons.iloc[-1]
+                
+                gap = top_score['Score_Performance'] - bottom_score['Score_Performance']
+                
+                prescricoes.append({
+                    'tipo': 'TALENTO',
+                    'prioridade': 'ALTA',
+                    'titulo': '🏆 Assimetria de Performance Detectada',
+                    'sintese': f'{gap:.1f} pontos de diferença entre top e bottom performer',
+                    'analise': f'**Top Performer:** {top_performer}\n'
+                              f'- Score de Performance: {top_score["Score_Performance"]:.1f}\n'
+                              f'- ROI/Hora: R$ {top_score["ROI_Hora"]:.2f}\n'
+                              f'- Margem Média: {top_score["Margem"]*100:.1f}%\n'
+                              f'**Necessita Desenvolvimento:** {bottom_performer}\n'
+                              f'- Score: {bottom_score["Score_Performance"]:.1f}\n'
+                              f'- ROI/Hora: R$ {bottom_score["ROI_Hora"]:.2f}\n'
+                              f'- Margem: {bottom_score["Margem"]*100:.1f}%',
+                    'prescricao': f'1. Implementar programa de mentoria: {top_performer} → {bottom_performer}\n'
+                                 f'2. Analisar metodologias e processos do top performer\n'
+                                 f'3. Avaliar adequação de alocação de projetos\n'
+                                 f'4. Criar plano de desenvolvimento individualizado',
+                    'impacto_estimado': 'Nivelamento pode aumentar rentabilidade geral em 15-25%',
+                    'confianca': 89
+                })
         
         # Se não houver prescrições críticas (além do gap de dados), dar feedback positivo
-        if len(prescricoes) <= 1:
+        if len(prescricoes) == 0 or (len(prescricoes) == 1 and prescricoes[0]['prioridade'] == 'CRÍTICA'):
             margem_media = df['Margem'].mean()
             eficiencia_geral = df['Eficiencia'].mean()
             prescricoes.append({
@@ -744,10 +785,10 @@ class CoreQuantumReasoning:
                 'titulo': '✅ Operação em Excelência (Visão Contábil)',
                 'sintese': 'Indicadores contábeis dentro dos parâmetros ideais',
                 'analise': f'Análise quântica não identificou anomalias contábeis. '
-                          f'Margem média de {margem_media:.1f}%, eficiência de {eficiencia_geral:.1f}%.',
+                          f'Margem média de {margem_media*100:.1f}%, eficiência de {eficiencia_geral:.1f}%.',
                 'prescricao': '1. Manter estratégia atual\n'
                              '2. Documentar melhores práticas\n'
-                             '3. FOCAR NA CORREÇÃO DO GAP DE DADOS DE CAIXA.',
+                             '3. FOCAR NA CORREÇÃO DO GAP DE DADOS DE CAIXA (se aplicável).',
                 'impacto_estimado': 'Crescimento sustentável de 15-20% ao ano',
                 'confianca': 95
             })
@@ -856,26 +897,28 @@ class SocraticQuestioningEngine:
         perguntas = []
         if 'TipoProj' in df.columns and len(df['TipoProj'].unique()) > 1:
             marg_tipo = df.groupby('TipoProj')['Margem'].mean()
-            melhor_tipo = marg_tipo.idxmax()
-            pior_tipo = marg_tipo.idxmin()
-            diferenca = marg_tipo[melhor_tipo] - marg_tipo[pior_tipo]
-            
-            if diferenca > 0.1: # 10%
-                perguntas.append({
-                    'categoria': 'ESTRATÉGIA',
-                    'pergunta': f'Seus projetos de "{melhor_tipo}" têm margem {diferenca*100:.1f}% superior a "{pior_tipo}". '
-                               f'Esta disparidade é resultado de uma estratégia consciente de penetração de mercado, '
-                               f'ou revela um custo oculto que ainda não identificamos?',
-                    'contexto': f'Margem "{melhor_tipo}": {marg_tipo[melhor_tipo]*100:.1f}% vs "{pior_tipo}": {marg_tipo[pior_tipo]*100:.1f}%',
-                    'profundidade': 'ESTRATÉGICA',
-                    'icone': '💎',
-                    'dados': {
-                        'melhor_tipo': melhor_tipo,
-                        'pior_tipo': pior_tipo,
-                        'margem_melhor': marg_tipo[melhor_tipo],
-                        'margem_pior': marg_tipo[pior_tipo]
-                    }
-                })
+            marg_tipo = marg_tipo.drop('N/A', errors='ignore') # Ignorar dados 'N/A'
+            if len(marg_tipo) > 1:
+                melhor_tipo = marg_tipo.idxmax()
+                pior_tipo = marg_tipo.idxmin()
+                diferenca = marg_tipo[melhor_tipo] - marg_tipo[pior_tipo]
+                
+                if diferenca > 0.1: # 10%
+                    perguntas.append({
+                        'categoria': 'ESTRATÉGIA',
+                        'pergunta': f'Seus projetos de "{melhor_tipo}" têm margem {diferenca*100:.1f}% superior a "{pior_tipo}". '
+                                   f'Esta disparidade é resultado de uma estratégia consciente de penetração de mercado, '
+                                   f'ou revela um custo oculto que ainda não identificamos?',
+                        'contexto': f'Margem "{melhor_tipo}": {marg_tipo[melhor_tipo]*100:.1f}% vs "{pior_tipo}": {marg_tipo[pior_tipo]*100:.1f}%',
+                        'profundidade': 'ESTRATÉGICA',
+                        'icone': '💎',
+                        'dados': {
+                            'melhor_tipo': melhor_tipo,
+                            'pior_tipo': pior_tipo,
+                            'margem_melhor': marg_tipo[melhor_tipo],
+                            'margem_pior': marg_tipo[pior_tipo]
+                        }
+                    })
         
         margem_media = df['Margem'].mean()
         if margem_media < 0.35: # Ajustado para fração 0.xx
@@ -934,43 +977,48 @@ class SocraticQuestioningEngine:
                 'Margem': 'mean',
                 'Hrs_Real': 'sum'
             }).fillna(0)
+            perf = perf.drop('N/A', errors='ignore') # Ignorar dados 'N/A'
             
-            top_performer = perf['ROI_Hora'].idxmax()
-            top_roi = perf.loc[top_performer, 'ROI_Hora']
-            
-            perguntas.append({
-                'categoria': 'TALENTO',
-                'pergunta': f'{top_performer} gera R$ {top_roi:.2f} de lucro por hora. '
-                           f'Se você perdesse essa pessoa amanhã, quanto tempo levaria para substituí-la? '
-                           f'E mais: você está criando outros "{top_performer}" ou ele é um milagre irrepetível?',
-                'contexto': f'Top performer: {top_performer} com ROI/hora de R$ {top_roi:.2f}',
-                'profundidade': 'ESTRATÉGICA',
-                'icone': '🏆',
-                'dados': {'top_performer': top_performer, 'top_roi': top_roi}
-            })
+            if len(perf) > 1:
+                top_performer = perf['ROI_Hora'].idxmax()
+                top_roi = perf.loc[top_performer, 'ROI_Hora']
+                
+                perguntas.append({
+                    'categoria': 'TALENTO',
+                    'pergunta': f'{top_performer} gera R$ {top_roi:.2f} de lucro por hora. '
+                               f'Se você perdesse essa pessoa amanhã, quanto tempo levaria para substituí-la? '
+                               f'E mais: você está criando outros "{top_performer}" ou ele é um milagre irrepetível?',
+                    'contexto': f'Top performer: {top_performer} com ROI/hora de R$ {top_roi:.2f}',
+                    'profundidade': 'ESTRATÉGICA',
+                    'icone': '🏆',
+                    'dados': {'top_performer': top_performer, 'top_roi': top_roi}
+                })
         return perguntas
     
     def _questionar_portfolio(self, df):
         perguntas = []
         if len(df['Cliente'].unique()) > 1:
             receita_cliente = df.groupby('Cliente')['Receita'].sum().sort_values(ascending=False)
-            top_cliente = receita_cliente.index[0]
-            receita_top = receita_cliente.iloc[0]
-            receita_total = receita_cliente.sum()
-            concentracao = (receita_top / receita_total * 100) if receita_total > 0 else 0
-            
-            if concentracao > 50:
-                perguntas.append({
-                    'categoria': 'RISCO',
-                    'pergunta': f'{top_cliente} representa {concentracao:.1f}% da sua receita. '
-                               f'Se esse cliente decidir internalizar o serviço ou trocar de fornecedor amanhã, '
-                               f'sua empresa sobrevive? Por quanto tempo? '
-                               f'Você está construindo um negócio ou se tornando refém de um cliente?',
-                    'contexto': f'Concentração: {concentracao:.1f}% em {top_cliente}',
-                    'profundidade': 'CRÍTICA',
-                    'icone': '⚠️',
-                    'dados': {'cliente': top_cliente, 'concentracao': concentracao}
-                })
+            receita_cliente = receita_cliente.drop('N/A', errors='ignore') # Ignorar dados 'N/A'
+
+            if len(receita_cliente) > 0:
+                top_cliente = receita_cliente.index[0]
+                receita_top = receita_cliente.iloc[0]
+                receita_total = receita_cliente.sum()
+                concentracao = (receita_top / receita_total * 100) if receita_total > 0 else 0
+                
+                if concentracao > 50:
+                    perguntas.append({
+                        'categoria': 'RISCO',
+                        'pergunta': f'{top_cliente} representa {concentracao:.1f}% da sua receita. '
+                                   f'Se esse cliente decidir internalizar o serviço ou trocar de fornecedor amanhã, '
+                                   f'sua empresa sobrevive? Por quanto tempo? '
+                                   f'Você está construindo um negócio ou se tornando refém de um cliente?',
+                        'contexto': f'Concentração: {concentracao:.1f}% em {top_cliente}',
+                        'profundidade': 'CRÍTICA',
+                        'icone': '⚠️',
+                        'dados': {'cliente': top_cliente, 'concentracao': concentracao}
+                    })
         return perguntas
     
     def _questionar_crescimento(self, df):
@@ -1051,15 +1099,15 @@ crq = st.session_state.crq
 socratic = st.session_state.socratic_engine
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# HEADER PREMIUM DO SISTEMA
+# HEADER PREMIUM DO SISTEMA (COM NOVO TÍTULO)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("""
 <div class="header-premium">
     <div class="logo-maestro">⚡ MAESTRO FAROL</div>
-    <div class="subtitle-maestro">QUANTUM BUSINESS INTELLIGENCE SYSTEM</div>
+    <div class="subtitle-maestro">AUTONOMOUS INSIGHT SYSTEM</div>
 </div>
-""", unsafe_allow_html=True)
+""", unsafe_allow_html=True) # <-- MUDANÇA DE BRANDING
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SIDEBAR INTELIGENTE COM FILTROS AVANÇADOS
@@ -1723,39 +1771,4 @@ with tab6:
                     
                     <div style="background: rgba(0,191,255,0.05); padding: 15px; border-radius: 10px; 
                                 margin-top: 15px; border-left: 3px solid #00BFFF;">
-                        <p style="margin: 0; font-size: 0.95em; color: #8A8A8A;">
-                            <strong style="color: #00BFFF;">📊 Contexto dos Dados:</strong><br>
-                            {pergunta['contexto']}
-                        </p>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                with st.expander(f"💭 Meu espaço de reflexão sobre a pergunta #{i}"):
-                    st.text_area(
-                        "Suas anotações:",
-                        placeholder="Use este espaço para anotar insights...",
-                        key=f"reflexao_{i}",
-                        height=120
-                    )
-                st.markdown("<br>", unsafe_allow_html=True)
-        
-        else:
-            st.info("🎯 Nenhuma pergunta gerada com os filtros aplicados. Ajuste os critérios.")
-    
-    else:
-        st.warning("📊 Aplique filtros para gerar perguntas estratégicas baseadas nos seus dados.")
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# RODAPÉ
-# ═══════════════════════════════════════════════════════════════════════════════
-
-st.markdown("---")
-st.markdown("""
-<div style='text-align: center; padding: 20px;'>
-    <p style='color: #00BFFF; font-size: 1.2em; font-weight: 600;'>⚡ MAESTRO FAROL</p>
-    <p style='color: #8A8A8A; font-size: 0.9em;'>
-        Quantum Business Intelligence System | Powered by CRQ Technology
-    </p>
-</div>
-""", unsafe_allow_html=True)
+                        <p style="margin: 0; font-size: 0.95em; color: #8A8A8A
