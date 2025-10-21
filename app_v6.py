@@ -78,14 +78,17 @@ st.markdown("""
 # --- NÚCLEO DE CONEXÃO COM O BANCO DE DADOS ---
 class DatabaseConnector:
     def __init__(self):
+        self.SECRETS_AVAILABLE = False
         try:
-            self.server = st.secrets["database"]["server"]
-            self.database = st.secrets["database"]["database"]
-            self.username = st.secrets["database"]["username"]
-            self.password = st.secrets["database"]["password"]
+            # --- CORREÇÃO 1: Usando o caminho "db_credentials" ---
+            self.server = st.secrets["db_credentials"]["server"]
+            self.database = st.secrets["db_credentials"]["database"]
+            self.username = st.secrets["db_credentials"]["username"]
+            self.password = st.secrets["db_credentials"]["password"]
             self.SECRETS_AVAILABLE = True
         except Exception as e:
-            self.SECRETS_AVAILABLE = False
+            # Erro ao ler os secrets, self.SECRETS_AVAILABLE = False
+            pass
         
         self.conn = None
         self.connection_error = None
@@ -100,14 +103,24 @@ class DatabaseConnector:
             return False 
             
         try:
-            conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={self.server};DATABASE={self.database};UID={self.username};PWD={self.password}'
-            self.conn = pyodbc.connect(conn_str, timeout=5)
+            # --- CORREÇÃO 2: Usando a string de conexão do seu extrator ---
+            conn_str = (
+                f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+                f"SERVER={self.server};"
+                f"DATABASE={self.database};"
+                f"UID={self.username};"
+                f"PWD={self.password};"
+                f"TrustServerCertificate=yes;" # Adicionado
+            )
+            self.conn = pyodbc.connect(conn_str, timeout=30) # Timeout aumentado
             return True
         except Exception as e:
+            # Armazena o erro de conexão
             self.connection_error = str(e)
             return False
 
     def get_data(self):
+        # Query principal do dashboard
         query = """
         SELECT
             g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
@@ -134,8 +147,6 @@ class DatabaseConnector:
             df = pd.read_sql(query, self.conn)
             return df
         except Exception as e:
-            # --- CORREÇÃO ---
-            # Em vez de st.error, armazene o erro
             self.connection_error = f"Erro na query: {e}"
             return pd.DataFrame() 
 
@@ -146,8 +157,6 @@ class DatabaseConnector:
 # --- MOTOR DE ANÁLISE QUÂNTICO ---
 class QuantumAnalyticsEngine:
     def __init__(self):
-        # --- CORREÇÃO ---
-        # Essas variáveis vão guardar o status para exibição fora da cache
         self.status_message = ""
         self.status_icon = ""
         self.is_mock_data = False
@@ -161,8 +170,8 @@ class QuantumAnalyticsEngine:
         self.dados_originais = self._processar_dados(df)
         self.dados_filtrados = self.dados_originais.copy()
 
-    # --- CORREÇÃO ---
-    # Esta função NÃO PODE ter chamadas st.*
+    # Esta função é chamada DE DENTRO do @st.cache_resource
+    # e NÃO PODE ter chamadas st.* (como st.sidebar, st.toast)
     def load_data(self):
         db = DatabaseConnector()
         
@@ -171,7 +180,6 @@ class QuantumAnalyticsEngine:
             db.close()
             
             if db.connection_error:
-                # Houve um erro na query, usar mock
                 message = f"Erro na query. Simulação."
                 icon = "⚠️"
                 return (self._create_mock_data(), message, icon, True)
@@ -185,7 +193,7 @@ class QuantumAnalyticsEngine:
                 icon = "ℹ️"
                 return (df, message, icon, False)
         
-        # Se a conexão falhou
+        # Se a conexão falhou (connect() retornou False)
         if not db.SECRETS_AVAILABLE:
             message = "Secrets não configurados. Simulação."
             icon = "🔒"
@@ -195,7 +203,7 @@ class QuantumAnalyticsEngine:
             
         return (self._create_mock_data(), message, icon, True)
 
-
+    # Função interna para processar dados (do banco ou mock)
     def _processar_dados(self, df):
         if df.empty:
             return df
@@ -212,6 +220,10 @@ class QuantumAnalyticsEngine:
         else:
             df['Lucro_Total'] = df['Receita_Total'] - df['Custo_Total']
         
+        # Garante que Ano e Mês sejam INT para padronização
+        df['Ano'] = pd.to_numeric(df['Ano'], errors='coerce').fillna(0).astype(int)
+        df['Mes'] = pd.to_numeric(df['Mes'], errors='coerce').fillna(0).astype(int)
+
         df['Horas_Realizadas_Calc'] = df['Horas_Realizadas'].replace(0, 1)
         df['Horas_Previstas_Calc'] = df['Horas_Previstas'].replace(0, 1)
         
@@ -222,6 +234,7 @@ class QuantumAnalyticsEngine:
         df.replace([np.inf, -np.inf], 0, inplace=True)
         return df
 
+    # Dados de simulação
     def _create_mock_data(self):
         data = {
             'Mes': [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
@@ -238,9 +251,11 @@ class QuantumAnalyticsEngine:
         }
         return pd.DataFrame(data)
 
+    # Função de filtro
     def aplicar_filtros(self, mes, ano, consultores, clientes, projetos):
         df = self.dados_originais.copy()
         if not df.empty:
+            # Converte o valor do filtro (que é string) para INT para bater com o DataFrame
             if mes != "TODOS": 
                 df = df[df['Mes'] == int(mes)]
             if ano != "TODOS": 
@@ -256,10 +271,11 @@ class QuantumAnalyticsEngine:
         self.dados_filtrados = df
         return df
 
+    # Geração de insights
     def gerar_insights_prescritivos(self):
         df = self.dados_filtrados
         if df.empty:
-            return [{'tipo': 'info', 'texto': 'Nenhum dado encontrado para os filtros selecionados. A superposição está vazia.'}]
+            return [{'tipo': 'info', 'texto': 'Nenhum dado encontrado para os filtros atuais.'}]
         
         insights = []
         
@@ -268,12 +284,12 @@ class QuantumAnalyticsEngine:
             proj_maior_desvio = df.loc[df['Desvio_Horas'].idxmax()]
             insights.append({
                 'tipo': 'alerta',
-                'texto': f"**Interferência Destrutiva (Risco):** A eficiência média de horas está em **{media_eficiencia:.1f}%**, indicando subestimação crônica. O projeto '{proj_maior_desvio['Projeto']}' com o consultor '{proj_maior_desvio['Consultor']}' estourou em **{proj_maior_desvio['Desvio_Horas']:.0f} horas**. **Prescrição:** Revisar o processo de escopo para projetos similares a este."
+                'texto': f"**Interferência Destrutiva (Risco):** A eficiência média de horas está em **{media_eficiencia:.1f}%**, indicando subestimação crônica. O projeto '{proj_maior_desvio['Projeto']}' com o consultor '{proj_maior_desvio['Consultor']}' estourou em **{proj_maior_desvio['Desvio_Horas']:.0f} horas**. **Prescrição:** Revisar o processo de escopo."
             })
         elif media_eficiencia < 85:
              insights.append({
                 'tipo': 'oportunidade',
-                'texto': f"**Potencial Oculto:** A eficiência média de horas está em **{media_eficiencia:.1f}%**. Há capacidade ociosa na equipe. **Prescrição:** Avaliar a alocação de novos projetos ou treinamentos para maximizar a produtividade."
+                'texto': f"**Potencial Oculto:** A eficiência média de horas está em **{media_eficiencia:.1f}%**. Há capacidade ociosa na equipe. **Prescrição:** Avaliar a alocação de novos projetos."
             })
 
         rentab_media = df['Rentabilidade_Hora'].mean()
@@ -282,7 +298,7 @@ class QuantumAnalyticsEngine:
             consultor_mais_rentavel = df_rentavel.loc[df_rentavel['Rentabilidade_Hora'].idxmax()]
             insights.append({
                 'tipo': 'sucesso',
-                'texto': f"**Ressonância da Verdade:** O consultor **{consultor_mais_rentavel['Consultor']}** está gerando **R$ {consultor_mais_rentavel['Rentabilidade_Hora']:.2f}/hora** no projeto '{consultor_mais_rentavel['Projeto']}', um valor significativamente acima da média de R$ {rentab_media:.2f}/hora. **Prescrição:** Entender as práticas deste consultor para replicar em toda a equipe."
+                'texto': f"**Ressonância da Verdade:** O consultor **{consultor_mais_rentavel['Consultor']}** está gerando **R$ {consultor_mais_rentavel['Rentabilidade_Hora']:.2f}/hora** no projeto '{consultor_mais_rentavel['Projeto']}', acima da média de R$ {rentab_media:.2f}/hora. **Prescrição:** Replicar as práticas deste consultor."
             })
         
         df_margem = df[df['Margem_Percentual'] > 0]
@@ -291,7 +307,7 @@ class QuantumAnalyticsEngine:
             if cliente_menor_margem['Margem_Percentual'] < 35:
                 insights.append({
                     'tipo': 'alerta',
-                    'texto': f"**Entrelaçamento Crítico:** O cliente **{cliente_menor_margem['Cliente']}** apresenta a menor margem de lucro positiva (**{cliente_menor_margem['Margem_Percentual']:.1f}%**). O custo e a receita estão em um entrelaçamento desfavorável. **Prescrição:** Renegociar valores ou otimizar a alocação de custos para este cliente."
+                    'texto': f"**Entrelaçamento Crítico:** O cliente **{cliente_menor_margem['Cliente']}** apresenta a menor margem positiva (**{cliente_menor_margem['Margem_Percentual']:.1f}%**). **Prescrição:** Renegociar valores ou otimizar a alocação de custos."
                 })
 
         return insights if insights else [{'tipo': 'info', 'texto': 'A orquestra está em harmonia. Todos os indicadores estão dentro dos parâmetros esperados para a seleção atual.'}]
@@ -325,6 +341,7 @@ def init_engine():
     """Cria e cacheia a instância principal do motor de análise."""
     return QuantumAnalyticsEngine()
 
+# Esta é a única chamada de cache. Ela cria o 'engine' uma vez.
 engine = init_engine()
 voice_processor = VoiceCommandProcessor()
 
@@ -346,12 +363,10 @@ st.markdown("---")
 # --- SIDEBAR DE CONTROLES (LÓGICA DO BOTÃO) ---
 with st.sidebar:
     
-    # --- CORREÇÃO ---
-    # Exibe a mensagem de status AQUI, fora da cache
+    # Exibe a mensagem de status (vinda do 'engine' cacheado)
     if engine.status_icon == "✅" or engine.status_icon == "ℹ️":
         st.sidebar.success(engine.status_message, icon=engine.status_icon)
     else:
-        # Se for "🔒" (sem secrets) ou "🔌" (conexão falhou) ou "⚠️" (erro de query)
         st.sidebar.error(engine.status_message, icon=engine.status_icon)
         
     if engine.is_mock_data:
@@ -363,20 +378,25 @@ with st.sidebar:
 
     dados_disponiveis = engine.dados_originais
     
+    # --- CORREÇÃO DO TYPEERROR ---
+    # Converte Ano e Mês (que são INT) para STRINGS para o selectbox
     anos = sorted([str(ano) for ano in dados_disponiveis['Ano'].unique()]) if not dados_disponiveis.empty else []
     meses = sorted([str(mes) for mes in dados_disponiveis['Mes'].unique()]) if not dados_disponiveis.empty else []
     consultores = sorted(dados_disponiveis['Consultor'].unique().tolist()) if not dados_disponiveis.empty else []
     clientes = sorted(dados_disponiveis['Cliente'].unique().tolist()) if not dados_disponiveis.empty else []
     projetos = sorted(dados_disponiveis['Projeto'].unique().tolist()) if not dados_disponiveis.empty else []
 
+    # Selectbox para Ano
     st.selectbox("Ano", ["TODOS"] + anos, 
                  key="filtro_ano", 
                  default=st.session_state.filtros_aplicados["ano"])
     
+    # Selectbox para Mês
     st.selectbox("Mês", ["TODOS"] + meses, 
                  key="filtro_mes", 
-                 default=st.session_state.filtros_aplicados["mes"])
+                 default=st.session_state.filtros_aplicADOS["mes"])
     
+    # Multiselects
     st.multiselect("Consultores", ["TODOS"] + consultores, 
                    key="filtro_consultores", 
                    default=st.session_state.filtros_aplicados["consultores"])
@@ -387,6 +407,7 @@ with st.sidebar:
                    key="filtro_projetos", 
                    default=st.session_state.filtros_aplicados["projetos"])
 
+    # O botão "Aplicar Filtros" é o que gartilha o rerun.
     if st.button("Aplicar Filtros", use_container_width=True, type="primary"):
         st.session_state.filtros_aplicados = {
             "ano": st.session_state.filtro_ano,
@@ -438,7 +459,6 @@ active_tab_index = tab_names.index(st.session_state.active_tab)
 tabs = st.tabs([f"**{name}**" for name in tab_names])
 
 # --- CONTEÚDO DAS ABAS ---
-# (O restante do código é mantido, pois já está correto)
 
 # Tab 1: Visão Geral
 with tabs[0]:
