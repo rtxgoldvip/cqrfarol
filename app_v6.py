@@ -126,7 +126,7 @@ class DatabaseConnector:
         LEFT JOIN tb_tipoproj t ON p.TipoProj = t.AutNumTipo
         LEFT JOIN tb_tec tec ON g.ConsultGest = tec.AutNumTec
         LEFT JOIN tb_cli cli ON p.CodCliProj = cli.AutNumCli
-        WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOT NULL
+        WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOTNOT NULL
         """
         try:
             df = pd.read_sql(query, self.conn)
@@ -145,26 +145,21 @@ class QuantumAnalyticsEngine:
         self.dados_originais = self.load_data()
         self.dados_filtrados = self.dados_originais.copy()
 
-    @st.cache_data(ttl=600) # Cacheia os dados carregados por 10 minutos
+    # --- CORREÇÃO 1: Decorador @st.cache_data removido daqui ---
     def load_data(self):
         db = DatabaseConnector()
         
-        # --- LÓGICA DE CONEXÃO CORRIGIDA ---
         if db.connect():
-            # Conexão bem-sucedida, tenta buscar dados
             df = db.get_data()
             db.close()
             
             if not df.empty:
                 st.sidebar.success(f"Conectado! {len(df)} registros carregados.", icon="✅")
             else:
-                # Conectou, mas a query não retornou nada. ISSO É SUCESSO.
                 st.sidebar.success("Conectado! O banco de dados não retornou registros.", icon="ℹ️")
             
-            # Retorna os dados do banco (mesmo que vazios)
             return self._processar_dados(df)
         
-        # Fallback: Se a conexão falhar (sem segredos, sem driver, erro de rede)
         if not db.SECRETS_AVAILABLE:
             st.sidebar.error("Secrets não configurados. Usando dados de simulação.")
         else:
@@ -174,7 +169,6 @@ class QuantumAnalyticsEngine:
         return self._processar_dados(self._create_mock_data())
 
     def _processar_dados(self, df):
-        # Se o DF estiver vazio, apenas retorna ele
         if df.empty:
             return df
             
@@ -201,7 +195,6 @@ class QuantumAnalyticsEngine:
         return df
 
     def _create_mock_data(self):
-        # (Dados de simulação mantidos como no original)
         data = {
             'Mes': [1, 1, 1, 2, 2, 2, 3, 3, 3, 3],
             'Ano': [2025, 2025, 2025, 2025, 2025, 2025, 2025, 2025, 2025, 2025],
@@ -229,14 +222,12 @@ class QuantumAnalyticsEngine:
         return df
 
     def gerar_insights_prescritivos(self):
-        # (Lógica de insights mantida como no original)
         df = self.dados_filtrados
         if df.empty:
             return [{'tipo': 'info', 'texto': 'Nenhum dado encontrado para os filtros selecionados. A superposição está vazia.'}]
         
         insights = []
         
-        # Insight 1: Eficiência de Horas
         media_eficiencia = df['Eficiencia_Horas'].mean()
         if media_eficiencia > 115:
             proj_maior_desvio = df.loc[df['Desvio_Horas'].idxmax()]
@@ -250,7 +241,6 @@ class QuantumAnalyticsEngine:
                 'texto': f"**Potencial Oculto:** A eficiência média de horas está em **{media_eficiencia:.1f}%**. Há capacidade ociosa na equipe. **Prescrição:** Avaliar a alocação de novos projetos ou treinamentos para maximizar a produtividade."
             })
 
-        # Insight 2: Rentabilidade
         rentab_media = df['Rentabilidade_Hora'].mean()
         df_rentavel = df[df['Rentabilidade_Hora'] > 0]
         if not df_rentavel.empty:
@@ -260,7 +250,6 @@ class QuantumAnalyticsEngine:
                 'texto': f"**Ressonância da Verdade:** O consultor **{consultor_mais_rentavel['Consultor']}** está gerando **R$ {consultor_mais_rentavel['Rentabilidade_Hora']:.2f}/hora** no projeto '{consultor_mais_rentavel['Projeto']}', um valor significativamente acima da média de R$ {rentab_media:.2f}/hora. **Prescrição:** Entender as práticas deste consultor para replicar em toda a equipe."
             })
         
-        # Insight 3: Margem de Lucro
         df_margem = df[df['Margem_Percentual'] > 0]
         if not df_margem.empty:
             cliente_menor_margem = df_margem.loc[df_margem['Margem_Percentual'].idxmin()]
@@ -274,7 +263,6 @@ class QuantumAnalyticsEngine:
 
 # --- PROCESSADOR DE COMANDOS DE VOZ (SIMULADO) ---
 class VoiceCommandProcessor:
-    # (Mantido como no original)
     def process(self, command):
         command = command.lower().strip()
         
@@ -297,13 +285,16 @@ class VoiceCommandProcessor:
         return "Comando não compreendido. Tente 'mostrar a aba consultores' ou 'limpar filtros'."
 
 # --- INICIALIZAÇÃO E CACHE ---
-# @st.cache_resource foi substituído por @st.cache_data no load_data
-# A inicialização do engine é feita uma vez
-engine = QuantumAnalyticsEngine()
+# --- CORREÇÃO 2: Usar @st.cache_resource para criar o engine ---
+@st.cache_resource
+def init_engine():
+    """Cria e cacheia a instância principal do motor de análise."""
+    return QuantumAnalyticsEngine()
+
+engine = init_engine()
 voice_processor = VoiceCommandProcessor()
 
-# --- LÓGICA DE FILTROS CORRIGIDA (com st.session_state) ---
-# Inicializa o estado dos filtros se não existir
+# --- LÓGICA DE FILTROS (com st.session_state) ---
 if 'filtros_aplicados' not in st.session_state:
     st.session_state.filtros_aplicados = {
         "ano": "TODOS",
@@ -318,7 +309,7 @@ st.markdown("<h1 style='text-align: center;'>MAESTRO QUÂNTICO</h1>", unsafe_all
 st.markdown("<p style='text-align: center; color: #8A8A8A; margin-top: -10px;'>Inteligência Preditiva para Gestão de Consultoria</p>", unsafe_allow_html=True)
 st.markdown("---")
 
-# --- SIDEBAR DE CONTROLES (LÓGICA DO BOTÃO CORRIGIDA) ---
+# --- SIDEBAR DE CONTROLES (LÓGICA DO BOTÃO) ---
 with st.sidebar:
     st.markdown("## 🌌 Controles da Orquestra")
     st.markdown("Filtre a superposição de dados para revelar a realidade desejada.")
@@ -331,8 +322,6 @@ with st.sidebar:
     clientes = sorted(dados_disponiveis['Cliente'].unique().tolist()) if not dados_disponiveis.empty else []
     projetos = sorted(dados_disponiveis['Projeto'].unique().tolist()) if not dados_disponiveis.empty else []
 
-    # Os widgets agora usam 'key' para guardar seu valor temporário
-    # e 'default' para mostrar o último valor APLICADO
     st.selectbox("Ano", ["TODOS"] + anos, 
                  key="filtro_ano", 
                  default=st.session_state.filtros_aplicados["ano"])
@@ -349,9 +338,7 @@ with st.sidebar:
                    key="filtro_projetos", 
                    default=st.session_state.filtros_aplicados["projetos"])
 
-    # Botão agora tem lógica real
     if st.button("Aplicar Filtros", use_container_width=True, type="primary"):
-        # Atualiza o 'filtros_aplicados' com os valores dos widgets
         st.session_state.filtros_aplicados = {
             "ano": st.session_state.filtro_ano,
             "mes": st.session_state.filtro_mes,
@@ -359,7 +346,6 @@ with st.sidebar:
             "clientes": st.session_state.filtro_clientes,
             "projetos": st.session_state.filtro_projetos
         }
-        # Força o recarregamento da página. Os dados serão filtrados com o novo estado.
         st.rerun()
 
     st.markdown("---")
@@ -367,7 +353,6 @@ with st.sidebar:
 
 
 # --- APLICAÇÃO DOS FILTROS ---
-# Os filtros são aplicados usando os valores salvos no session_state
 df_filtrado = engine.aplicar_filtros(
     st.session_state.filtros_aplicados["mes"],
     st.session_state.filtros_aplicados["ano"],
@@ -391,7 +376,7 @@ else:
 # --- ABAS DE NAVEGAÇÃO ---
 tab_names = [
     "Visão Geral (Orquestra)", "Análise Profunda (Ressonância)", 
-    "Consultores & ProjetOS", "Simulador Quântico", 
+    "Consultores & Projetos", "Simulador Quântico", 
     "Fechamento & Financeiro", "Assistente IA (Maestro)"
 ]
 
@@ -404,7 +389,6 @@ active_tab_index = tab_names.index(st.session_state.active_tab)
 tabs = st.tabs([f"**{name}**" for name in tab_names])
 
 # --- CONTEÚDO DAS ABAS ---
-# O conteúdo das abas foi mantido, pois já funcionava com df_filtrado
 
 # Tab 1: Visão Geral
 with tabs[0]:
