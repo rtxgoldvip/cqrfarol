@@ -846,7 +846,7 @@ class CoreQuantumReasoning:
             margem_hist = hist['margem_avg']
             delta_margem = (margem_atual - margem_hist) / abs(margem_hist) if margem_hist != 0 else 0
             
-            if delta_margem < -0.15: # Queda de 15%
+                        if delta_margem < -0.15: # Queda de 15%
                 prescricoes.append({
                     'tipo': 'ALERTA', 'prioridade': 'ALTA',
                     'titulo': '📉 Anomalia de Rentabilidade Detectada',
@@ -858,6 +858,7 @@ class CoreQuantumReasoning:
                     'impacto_estimado': f'Recuperação para a média de {margem_hist*100:.1f}% de margem.',
                     'confianca': 92
                 })
+
             
             # Comparação de Eficiência (ROI/Hora)
             roi_atual = metricas['roi_hora']
@@ -909,18 +910,289 @@ class CoreQuantumReasoning:
         # Prescrição padrão de "Sucesso"
         if not prescricoes: # Se nenhuma alerta foi gerado
             prescricoes.append({
+    def gerar_prescricoes_quantum(self):
+        """
+        Gera prescrições baseadas no estado atual (filtrado) vs. assinatura histórica.
+        """
+        df = self.estado_quantum
+        metricas = self.calcular_metricas_consolidadas()
+        hist = self.assinatura_historica
+        
+        if df.empty:
+            return [{
+                'tipo': 'INFO', 'prioridade': 'BAIXA', 'titulo': '📊 Aguardando Dados',
+                'sintese': 'Selecione filtros para iniciar a ressonância prescritiva',
+                'analise': 'O CRQ precisa de dados para processar',
+                'prescricao': 'Ajuste os filtros na sidebar',
+                'impacto_estimado': 'N/A', 'confianca': 0
+            }]
+
+        prescricoes = []
+        ano_sel = df['Ano'].iloc[0] # Seguro, pois df não está vazio
+
+        # 1. PRESCRIÇÃO CRÍTICA: DESCOLAMENTO DE CAIXA (O "BUG 2025" DINÂMICO)
+        gap_lucro = metricas['lucro'] - metricas['lucro_caixa']
+        if metricas['receita'] > 0 and (abs(gap_lucro) / metricas['receita']) > 0.7:
+             prescricoes.append({
+                'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
+                'titulo': '🚨 ALERTA DE INTEGRIDADE: Descolamento Crítico de Caixa',
+                'sintese': f"Lucro Contábil de R$ {metricas['lucro']:,.0f} vs. Lucro de Caixa de R$ {metricas['lucro_caixa']:,.0f}.",
+                'analise': f"O sistema detectou um 'descolamento' (gap) de R$ {gap_lucro:,.0f} entre a visão contábil e a visão de caixa.\n"
+                          f"Isso sugere que os recebimentos (Caixa_Recebido) e/ou pagamentos (Caixa_Pago) registrados para este período não correspondem aos valores faturados/provisionados.\n"
+                          f"**Hipótese (Bug 2025):** Se for 2025 ou posterior, a forma de ligar o caixa (CP/CR) ao faturamento (Fato) pode estar quebrada ou ter mudado (ex: o join por Ano/Mês/Cliente/Prestador não é suficiente).",
+                'prescricao': """1. VALIDAR URGENTEMENTE o processo de lançamento de caixa (CP/CR) e sua relação com os lançamentos contábeis (Tb_GestorFin2).
+2. Investigar se há inadimplência real ou atrasos de pagamento/recebimento que justifiquem o gap.
+3. ATÉ A CORREÇÃO: Confie primariamente na Visão Contábil (Tab 1), mas com extrema cautela sobre a saúde financeira real.""",
+                'impacto_estimado': 'PERDA TOTAL da visão de Caixa. Risco de má gestão financeira.',
+                'confianca': 100
+            })
+        
+        # 2. ANÁLISE DE SANGRIA E OCIOSIDADE (LÓGICA AVANÇADA)
+        sangria_total = df[df['Status_Horas'] == 'SANGRIA']['Sangria_Risco_Absoluto'].sum()
+        ociosidade_total = df[df['Status_Horas'] == 'OCIOSIDADE']['Ociosidade_Risco_Absoluto'].sum()
+        
+        # --- CORREÇÃO DO SYNTAXERROR ANTERIOR ESTÁ AQUI ---
+        overrun_faturavel_total = df[df['Status_Horas'] == 'OVERRUN_FATURAVEL']['Hrs_Real'].sum()
+        # --------------------------------------------------
+
+        if sangria_total > (metricas['custo'] * 0.1) and metricas['custo'] > 0: # Sangria > 10% do Custo Total
+            prescricoes.append({
+                'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
+                'titulo': '🩸 SANGRIA DETECTADA em Projetos Fechados',
+                'sintese': f"R$ {sangria_total:,.0f} de custo adicional em projetos de escopo fechado que estouraram horas.",
+                'analise': f"Detectamos que {len(df[df['Status_Horas'] == 'SANGRIA'])} projetos fechados consumiram mais horas que o orçado, gerando um custo direto (não faturável) de R$ {sangria_total:,.0f}. Isso corrói diretamente a margem.",
+                'prescricao': """1. AUDITAR IMEDIATAMENTE os projetos listados na "Análise Profunda > Sangria".
+2. Revisar o processo de estimativa (Scoping) para projetos fechados.
+3. Implementar checkpoints de % de horas gastas vs. % de entrega.""",
+                'impacto_estimado': f'Recuperação de R$ {sangria_total:,.0f} em margem futura.',
+                'confianca': 95
+            })
+
+        if ociosidade_total > (metricas['lucro'] * 0.15) and metricas['lucro'] > 0: # Ociosidade > 15% do Lucro
+            prescricoes.append({
+                'tipo': 'OPORTUNIDADE', 'prioridade': 'ALTA',
+                'titulo': '🎯 Oportunidade Oculta (Capacidade Ociosa)',
+                'sintese': f"R$ {ociosidade_total:,.0f} de lucro potencial perdido devido a horas orçadas não realizadas.",
+                'analise': f"Identificamos {len(df[df['Status_Horas'] == 'OCIOSIDADE'])} projetos que consumiram menos horas que o previsto. Embora pareça 'eficiência', isso representa {df[df['Status_Horas'] == 'OCIOSIDADE']['Desvio_Hrs'].sum():.0f}h de capacidade que foi orçada mas não utilizada (e não faturada, em muitos casos).",
+                'prescricao': """1. Verificar se o faturamento desses projetos foi completo (baseado no contrato/Vl_Faturado_Contrato) ou se foi parcial (baseado nas horas reais).
+2. Se o faturamento foi parcial, renegociar ou realocar a equipe.
+3. Se o faturamento foi completo, parabenizar a equipe pela eficiência e realocar o tempo ganho.""",
+                'impacto_estimado': f'R$ {ociosidade_total:,.0f} de receita/lucro adicional.',
+                'confianca': 88
+            })
+
+        # 3. ANÁLISE COMPARATIVA (PERÍODO ATUAL vs. ASSINATURA HISTÓRICA)
+        if hist and hist['count_months'] > 2: # Só compara se tiver histórico
+            
+            # Comparação de Margem
+            margem_atual = metricas['margem']
+            margem_hist = hist['margem_avg']
+            delta_margem = (margem_atual - margem_hist) / abs(margem_hist) if margem_hist != 0 else 0
+            
+            # --- CORREÇÃO DO SYNTAXERROR DA LINHA 855 ---
+            if delta_margem < -0.15: # Queda de 15%
+                prescricoes.append({
+                    'tipo': 'ALERTA', 'prioridade': 'ALTA',
+                    'titulo': '📉 Anomalia de Rentabilidade Detectada',
+                    'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da média histórica ({margem_hist*100:.1f}%).",
+                    'analise': f"O DNA financeiro da empresa (assinatura histórica) mostra uma margem média de {margem_hist*100:.1f}%. O período atual está performando {abs(delta_margem*100):.0f}% abaixo disso. Isso pode ser devido a custos mais altos, precificação inadequada ou um mix de projetos ruins.",
+                    'prescricao': """1. Analisar os piores projetos na Tab 1 (Gráfico de Projetos).
+2. Verificar se o VH_Custo dos consultores alocados aumentou.
+3. Focar em projetos de alta margem (ver 'otimizacao_mix' se disponível).""",
+                    'impacto_estimado': f'Recuperação para a média de {margem_hist*100:.1f}% de margem.',
+                    'confianca': 92
+                })
+            
+            # Comparação de Eficiência (ROI/Hora)
+            roi_atual = metricas['roi_hora']
+            roi_hist = hist['roi_hora_avg']
+            delta_roi = (roi_atual - roi_hist) / abs(roi_hist) if roi_hist != 0 else 0
+            
+            # --- CORREÇÃO DE SYNTAXERROR ADICIONAL ---
+            if delta_roi > 0.2: # Melhoria de 20%
+                 prescricoes.append({
+                    'tipo': 'SUCESSO', 'prioridade': 'BAIXA',
+                    'titulo': '🏆 Salto Quântico de Eficiência!',
+                    'sintese': f"ROI/Hora de R$ {roi_atual:.2f}, {delta_roi*100:.0f}% acima da média histórica (R$ {roi_hist:.2f}).",
+                    'analise': f"O período atual demonstra uma eficiência de capital humano excepcional. Cada hora trabalhada gerou {delta_roi*100:.0f}% mais lucro que a média histórica. Isso é um sinal de excelente alocação de recursos e precificação correta.",
+                    'prescricao': """1. IDENTIFICAR E DOCUMENTAR as práticas que levaram a este resultado.
+2. REPLICAR este modelo de alocação/precificação.
+3. Premiar os consultores/projetos com maior ROI/Hora (ver Tab 1).""",
+                    'impacto_estimado': 'Estabelecimento de um novo patamar de rentabilidade.',
+                    'confianca': 98
+                })
+
+        # 4. PRESCRIÇÕES BASEADAS EM ENTRELAÇAMENTOS (PADRÕES OCULTOS)
+        # --- CORREÇÃO DE SYNTAXERROR ADICIONAL ---
+        if 'otimizacao_mix' in self.padroes_ocultos:
+            info = self.padroes_ocultos['otimizacao_mix']
+            prescricoes.append({
+                'tipo': 'EFICIENCIA', 'prioridade': 'ALTA',
+                'titulo': '💎 Otimização Estratégica do Mix de Serviços',
+                'sintese': f"'{info['melhor']}' está gerando {info['gap']*100:.1f} pontos percentuais a mais de margem que '{info['pior']}'.",
+                'analise': f"A análise de entrelaçamento mostra uma assimetria clara: '{info['melhor']}' é um motor de lucro, enquanto '{info['pior']}' drena rentabilidade. O foco comercial deve ser ajustado.",
+                'prescricao': f"""1. Focar esforços comerciais em projetos tipo "{info["melhor"]}".
+2. Avaliar o repricing (aumento de preço) ou descontinuação de projetos tipo "{info["pior"]}".
+3. Criar pacotes que combinem serviços de alta e baixa margem para otimizar o mix.""",
+                'impacto_estimado': 'Aumento de 5-10% na margem consolidada.',
+    def gerar_prescricoes_quantum(self):
+        """
+        Gera prescrições baseadas no estado atual (filtrado) vs. assinatura histórica.
+        """
+        df = self.estado_quantum
+        metricas = self.calcular_metricas_consolidadas()
+        hist = self.assinatura_historica
+        
+        if df.empty:
+            return [{
+                'tipo': 'INFO', 'prioridade': 'BAIXA', 'titulo': '📊 Aguardando Dados',
+                'sintese': 'Selecione filtros para iniciar a ressonância prescritiva',
+                'analise': 'O CRQ precisa de dados para processar',
+                'prescricao': 'Ajuste os filtros na sidebar',
+                'impacto_estimado': 'N/A', 'confianca': 0
+            }]
+
+        prescricoes = []
+        if df.empty:
+            # Esta verificação é duplicada, mas segura.
+            return prescricoes
+            
+        ano_sel = df['Ano'].iloc[0] # Seguro, pois df não está vazio
+
+        # 1. PRESCRIÇÃO CRÍTICA: DESCOLAMENTO DE CAIXA (O "BUG 2025" DINÂMICO)
+        gap_lucro = metricas['lucro'] - metricas['lucro_caixa']
+        if metricas['receita'] > 0 and (abs(gap_lucro) / metricas['receita']) > 0.7:
+             prescricoes.append({
+                'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
+                'titulo': '🚨 ALERTA DE INTEGRIDADE: Descolamento Crítico de Caixa',
+                'sintese': f"Lucro Contábil de R$ {metricas['lucro']:,.0f} vs. Lucro de Caixa de R$ {metricas['lucro_caixa']:,.0f}.",
+                'analise': f"O sistema detectou um 'descolamento' (gap) de R$ {gap_lucro:,.0f} entre a visão contábil e a visão de caixa.\n"
+                          f"Isso sugere que os recebimentos (Caixa_Recebido) e/ou pagamentos (Caixa_Pago) registrados para este período não correspondem aos valores faturados/provisionados.\n"
+                          f"**Hipótese (Bug 2025):** Se for 2025 ou posterior, a forma de ligar o caixa (CP/CR) ao faturamento (Fato) pode estar quebrada ou ter mudado (ex: o join por Ano/Mês/Cliente/Prestador não é suficiente).",
+                'prescricao': """1. VALIDAR URGENTEMENTE o processo de lançamento de caixa (CP/CR) e sua relação com os lançamentos contábeis (Tb_GestorFin2).
+2. Investigar se há inadimplência real ou atrasos de pagamento/recebimento que justifiquem o gap.
+3. ATÉ A CORREÇÃO: Confie primariamente na Visão Contábil (Tab 1), mas com extrema cautela sobre a saúde financeira real.""",
+                'impacto_estimado': 'PERDA TOTAL da visão de Caixa. Risco de má gestão financeira.',
+                'confianca': 100
+            })
+        
+        # 2. ANÁLISE DE SANGRIA E OCIOSIDADE (LÓGICA AVANÇADA)
+        sangria_total = df[df['Status_Horas'] == 'SANGRIA']['Sangria_Risco_Absoluto'].sum()
+        ociosidade_total = df[df['Status_Horas'] == 'OCIOSIDADE']['Ociosidade_Risco_Absoluto'].sum()
+        overrun_faturavel_total = df[df['Status_Horas'] == 'OVERRUN_FATURAVEL']['Hrs_Real'].sum()
+
+        if sangria_total > (metricas['custo'] * 0.1) and metricas['custo'] > 0: # Sangria > 10% do Custo Total
+            prescricoes.append({
+                'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
+                'titulo': '🩸 SANGRIA DETECTADA em Projetos Fechados',
+                'sintese': f"R$ {sangria_total:,.0f} de custo adicional em projetos de escopo fechado que estouraram horas.",
+                'analise': f"Detectamos que {len(df[df['Status_Horas'] == 'SANGRIA'])} projetos fechados consumiram mais horas que o orçado, gerando um custo direto (não faturável) de R$ {sangria_total:,.0f}. Isso corrói diretamente a margem.",
+                'prescricao': """1. AUDITAR IMEDIATAMENTE os projetos listados na "Análise Profunda > Sangria".
+2. Revisar o processo de estimativa (Scoping) para projetos fechados.
+3. Implementar checkpoints de % de horas gastas vs. % de entrega.""",
+                'impacto_estimado': f'Recuperação de R$ {sangria_total:,.0f} em margem futura.',
+                'confianca': 95
+            })
+
+        if ociosidade_total > (metricas['lucro'] * 0.15) and metricas['lucro'] > 0: # Ociosidade > 15% do Lucro
+            prescricoes.append({
+                'tipo': 'OPORTUNIDADE', 'prioridade': 'ALTA',
+                'titulo': '🎯 Oportunidade Oculta (Capacidade Ociosa)',
+                'sintese': f"R$ {ociosidade_total:,.0f} de lucro potencial perdido devido a horas orçadas não realizadas.",
+                'analise': f"Identificamos {len(df[df['Status_Horas'] == 'OCIOSIDADE'])} projetos que consumiram menos horas que o previsto. Embora pareça 'eficiência', isso representa {df[df['Status_Horas'] == 'OCIOSIDADE']['Desvio_Hrs'].sum():.0f}h de capacidade que foi orçada mas não utilizada (e não faturada, em muitos casos).",
+                'prescricao': """1. Verificar se o faturamento desses projetos foi completo (baseado no contrato/Vl_Faturado_Contrato) ou se foi parcial (baseado nas horas reais).
+2. Se o faturamento foi parcial, renegociar ou realocar a equipe.
+3. Se o faturamento foi completo, parabenizar a equipe pela eficiência e realocar o tempo ganho.""",
+                'impacto_estimado': f'R$ {ociosidade_total:,.0f} de receita/lucro adicional.',
+                'confianca': 88
+            })
+
+        # 3. ANÁLISE COMPARATIVA (PERÍODO ATUAL vs. ASSINATURA HISTÓRICA)
+        if hist and hist['count_months'] > 2: # Só compara se tiver histórico
+            
+            # Comparação de Margem
+            margem_atual = metricas['margem']
+            margem_hist = hist['margem_avg']
+            delta_margem = (margem_atual - margem_hist) / abs(margem_hist) if margem_hist != 0 else 0
+            
+            # --- ESTE BLOCO ESTÁ COM A INDENTAÇÃO CORRIGIDA ---
+            if delta_margem < -0.15: # Queda de 15%
+                prescricoes.append({
+                    'tipo': 'ALERTA', 'prioridade': 'ALTA',
+                    'titulo': '📉 Anomalia de Rentabilidade Detectada',
+                    'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da média histórica ({margem_hist*100:.1f}%).",
+                    'analise': f"O DNA financeiro da empresa (assinatura histórica) mostra uma margem média de {margem_hist*100:.1f}%. O período atual está performando {abs(delta_margem*100):.0f}% abaixo disso. Isso pode ser devido a custos mais altos, precificação inadequada ou um mix de projetos ruins.",
+                    'prescricao': """1. Analisar os piores projetos na Tab 1 (Gráfico de Projetos).
+2. Verificar se o VH_Custo dos consultores alocados aumentou.
+3. Focar em projetos de alta margem (ver 'otimizacao_mix' se disponível).""",
+                    'impacto_estimado': f'Recuperação para a média de {margem_hist*100:.1f}% de margem.',
+                    'confianca': 92
+                })
+            
+            # Comparação de Eficiência (ROI/Hora)
+            roi_atual = metricas['roi_hora']
+            roi_hist = hist['roi_hora_avg']
+            delta_roi = (roi_atual - roi_hist) / abs(roi_hist) if roi_hist != 0 else 0
+            
+            # --- ESTE BLOCO ESTÁ COM A INDENTAÇÃO CORRIGIDA ---
+            if delta_roi > 0.2: # Melhoria de 20%
+                 prescricoes.append({
+                    'tipo': 'SUCESSO', 'prioridade': 'BAIXA',
+                    'titulo': '🏆 Salto Quântico de Eficiência!',
+                    'sintese': f"ROI/Hora de R$ {roi_atual:.2f}, {delta_roi*100:.0f}% acima da média histórica (R$ {roi_hist:.2f}).",
+                    'analise': f"O período atual demonstra uma eficiência de capital humano excepcional. Cada hora trabalhada gerou {delta_roi*100:.0f}% mais lucro que a média histórica. Isso é um sinal de excelente alocação de recursos e precificação correta.",
+                    'prescricao': """1. IDENTIFICAR E DOCUMENTAR as práticas que levaram a este resultado.
+2. REPLICAR este modelo de alocação/precificação.
+3. Premiar os consultores/projetos com maior ROI/Hora (ver Tab 1).""",
+                    'impacto_estimado': 'Estabelecimento de um novo patamar de rentabilidade.',
+                    'confianca': 98
+                })
+
+        # 4. PRESCRIÇÕES BASEADAS EM ENTRELAÇAMENTOS (PADRÕES OCULTOS)
+        if 'otimizacao_mix' in self.padroes_ocultos:
+            info = self.padroes_ocultos['otimizacao_mix']
+            prescricoes.append({
+                'tipo': 'EFICIENCIA', 'prioridade': 'ALTA',
+                'titulo': '💎 Otimização Estratégica do Mix de Serviços',
+                'sintese': f"'{info['melhor']}' está gerando {info['gap']*100:.1f} pontos percentuais a mais de margem que '{info['pior']}'.",
+                'analise': f"A análise de entrelaçamento mostra uma assimetria clara: '{info['melhor']}' é um motor de lucro, enquanto '{info['pior']}' drena rentabilidade. O foco comercial deve ser ajustado.",
+                'prescricao': f"""1. Focar esforços comerciais em projetos tipo "{info["melhor"]}".
+2. Avaliar o repricing (aumento de preço) ou descontinuação de projetos tipo "{info["pior"]}".
+3. Criar pacotes que combinem serviços de alta e baixa margem para otimizar o mix.""",
+                'impacto_estimado': 'Aumento de 5-10% na margem consolidada.',
+                'confianca': 90
+            })
+
+        if 'disparidade_consultores' in self.padroes_ocultos:
+            info = self.padroes_ocultos['disparidade_consultores']
+            prescricoes.append({
+                'tipo': 'TALENTO', 'prioridade': 'ALTA',
+                'titulo': '🏆 Assimetria de Performance (Talentos)',
+                'sintese': f"Disparidade detectada. Top Performer ({info['top']}) tem ROI/Hora muito superior ao Bottom ({info['bottom']}).",
+                'analise': f"Existe uma grande diferença na geração de valor por hora entre os consultores (Std Dev: {info['valor']:.2f}). Isso pode ser causado por senioridade, tipo de projeto alocado ou habilidade de negociação/entrega.",
+                'prescricao': f"""1. Implementar programa de mentoria: {info["top"]} → {info["bottom"]}.
+2. Analisar se {info["bottom"]} está alocado em projetos de baixa margem ou com escopo mal definido.
+3. Padronizar as metodologias de entrega usadas por {info["top"]}.""",
+                'impacto_estimado': 'Nivelamento pode aumentar rentabilidade geral em 15-25%.',
+                'confianca': 89
+            })
+
+        # Prescrição padrão de "Sucesso"
+        if not prescricoes: # Se nenhuma alerta foi gerado
+            prescricoes.append({
                 'tipo': 'SUCESSO', 'prioridade': 'BAIXA',
                 'titulo': '✅ Operação em Equilíbrio Quântico',
                 'sintese': 'Nenhuma anomalia crítica detectada no período.',
                 'analise': 'Os indicadores do período (Margem, Eficiência, Gaps de Caixa) estão dentro dos parâmetros esperados em comparação com a assinatura histórica. A operação demonstra estabilidade.',
-                'prescricao': '1. Manter a estratégia atual.\n'
-                             '2. Continuar monitorando a "Ressonância Prescritiva" para detecção precoce de desvios.',
+                'prescricao': """1. Manter a estratégia atual.
+2. Continuar monitorando a "Ressonância Prescritiva" para detecção precoce de desvios.""",
                 'impacto_estimado': 'Manutenção da performance e crescimento sustentável.',
                 'confianca': 95
             })
 
         self.prescricoes_ativas = prescricoes
         return prescricoes
+
     def calcular_metricas_consolidadas(self):
         """
         Calcula KPIs consolidados do estado quântico atual.
