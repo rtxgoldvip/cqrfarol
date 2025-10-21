@@ -86,16 +86,12 @@ class DatabaseConnector:
             self.SECRETS_AVAILABLE = True
         except Exception as e:
             self.SECRETS_AVAILABLE = False
-            # Não exiba o erro aqui ainda, o load_data vai cuidar disso
         
         self.conn = None
         
     def connect(self):
-        if not PYODBC_AVAILABLE:
-            return False # Driver não encontrado
-            
-        if not self.SECRETS_AVAILABLE:
-            return False # Segredos não configurados
+        if not PYODBC_AVAILABLE or not self.SECRETS_AVAILABLE:
+            return False 
             
         try:
             conn_str = f'DRIVER={{ODBC Driver 17 for SQL Server}};SERVER={self.server};DATABASE={self.database};UID={self.username};PWD={self.password}'
@@ -106,6 +102,7 @@ class DatabaseConnector:
             return False
 
     def get_data(self):
+        # *** CORREÇÃO DE TYPO NO SQL (NOTNULL -> NOT NULL) ***
         query = """
         SELECT
             g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
@@ -126,14 +123,14 @@ class DatabaseConnector:
         LEFT JOIN tb_tipoproj t ON p.TipoProj = t.AutNumTipo
         LEFT JOIN tb_tec tec ON g.ConsultGest = tec.AutNumTec
         LEFT JOIN tb_cli cli ON p.CodCliProj = cli.AutNumCli
-        WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOTNOT NULL
+        WHERE tec.NomeTec IS NOT NULL AND p.DescProj IS NOT NULL
         """
         try:
             df = pd.read_sql(query, self.conn)
             return df
         except Exception as e:
             st.error(f"Erro ao buscar dados: {e}")
-            return pd.DataFrame() # Retorna DF vazio em caso de erro na query
+            return pd.DataFrame() 
 
     def close(self):
         if self.conn:
@@ -145,7 +142,6 @@ class QuantumAnalyticsEngine:
         self.dados_originais = self.load_data()
         self.dados_filtrados = self.dados_originais.copy()
 
-    # --- CORREÇÃO 1: Decorador @st.cache_data removido daqui ---
     def load_data(self):
         db = DatabaseConnector()
         
@@ -210,14 +206,24 @@ class QuantumAnalyticsEngine:
         }
         return pd.DataFrame(data)
 
+    # *** CORREÇÃO PARTE 2: Converter mês e ano para INT antes de filtrar ***
     def aplicar_filtros(self, mes, ano, consultores, clientes, projetos):
         df = self.dados_originais.copy()
         if not df.empty:
-            if mes != "TODOS": df = df[df['Mes'] == mes]
-            if ano != "TODOS": df = df[df['Ano'] == ano]
-            if "TODOS" not in consultores: df = df[df['Consultor'].isin(consultores)]
-            if "TODOS" not in clientes: df = df[df['Cliente'].isin(clientes)]
-            if "TODOS" not in projetos: df = df[df['Projeto'].isin(projetos)]
+            # Converte o mês e ano (que vêm como string do selectbox) para int
+            if mes != "TODOS": 
+                df = df[df['Mes'] == int(mes)]
+            if ano != "TODOS": 
+                df = df[df['Ano'] == int(ano)]
+                
+            # Filtros de string (multiselect)
+            if "TODOS" not in consultores: 
+                df = df[df['Consultor'].isin(consultores)]
+            if "TODOS" not in clientes: 
+                df = df[df['Cliente'].isin(clientes)]
+            if "TODOS" not in projetos: 
+                df = df[df['Projeto'].isin(projetos)]
+                
         self.dados_filtrados = df
         return df
 
@@ -285,7 +291,6 @@ class VoiceCommandProcessor:
         return "Comando não compreendido. Tente 'mostrar a aba consultores' ou 'limpar filtros'."
 
 # --- INICIALIZAÇÃO E CACHE ---
-# --- CORREÇÃO 2: Usar @st.cache_resource para criar o engine ---
 @st.cache_resource
 def init_engine():
     """Cria e cacheia a instância principal do motor de análise."""
@@ -316,18 +321,24 @@ with st.sidebar:
 
     dados_disponiveis = engine.dados_originais
     
-    anos = sorted(dados_disponiveis['Ano'].unique().tolist()) if not dados_disponiveis.empty else []
-    meses = sorted(dados_disponiveis['Mes'].unique().tolist()) if not dados_disponiveis.empty else []
+    # *** CORREÇÃO PARTE 1: Converter Ano e Mês para STRINGS para o selectbox ***
+    anos = sorted([str(ano) for ano in dados_disponiveis['Ano'].unique()]) if not dados_disponiveis.empty else []
+    meses = sorted([str(mes) for mes in dados_disponiveis['Mes'].unique()]) if not dados_disponiveis.empty else []
     consultores = sorted(dados_disponiveis['Consultor'].unique().tolist()) if not dados_disponiveis.empty else []
     clientes = sorted(dados_disponiveis['Cliente'].unique().tolist()) if not dados_disponiveis.empty else []
     projetos = sorted(dados_disponiveis['Projeto'].unique().tolist()) if not dados_disponiveis.empty else []
 
+    # Selectbox para Ano (agora usa lista de strings)
     st.selectbox("Ano", ["TODOS"] + anos, 
                  key="filtro_ano", 
                  default=st.session_state.filtros_aplicados["ano"])
+    
+    # Selectbox para Mês (agora usa lista de strings)
     st.selectbox("Mês", ["TODOS"] + meses, 
                  key="filtro_mes", 
                  default=st.session_state.filtros_aplicados["mes"])
+    
+    # Multiselects (já eram strings, estão OK)
     st.multiselect("Consultores", ["TODOS"] + consultores, 
                    key="filtro_consultores", 
                    default=st.session_state.filtros_aplicados["consultores"])
@@ -389,6 +400,7 @@ active_tab_index = tab_names.index(st.session_state.active_tab)
 tabs = st.tabs([f"**{name}**" for name in tab_names])
 
 # --- CONTEÚDO DAS ABAS ---
+# (O restante do código é mantido, pois já está correto)
 
 # Tab 1: Visão Geral
 with tabs[0]:
