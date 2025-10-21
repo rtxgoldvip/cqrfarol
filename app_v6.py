@@ -88,9 +88,15 @@ class DatabaseConnector:
             self.SECRETS_AVAILABLE = False
         
         self.conn = None
+        self.connection_error = None
         
     def connect(self):
-        if not PYODBC_AVAILABLE or not self.SECRETS_AVAILABLE:
+        if not PYODBC_AVAILABLE:
+            self.connection_error = "Driver pyodbc não encontrado."
+            return False 
+            
+        if not self.SECRETS_AVAILABLE:
+            self.connection_error = "Secrets do banco não configurados."
             return False 
             
         try:
@@ -98,11 +104,10 @@ class DatabaseConnector:
             self.conn = pyodbc.connect(conn_str, timeout=5)
             return True
         except Exception as e:
-            st.sidebar.error(f"Falha na conexão com o banco. Erro: {e}", icon="❌")
+            self.connection_error = str(e)
             return False
 
     def get_data(self):
-        # *** CORREÇÃO DE TYPO NO SQL (NOTNULL -> NOT NULL) ***
         query = """
         SELECT
             g.IdGest2, CAST(g.Mes as INT) as Mes, CAST(g.Ano as INT) as Ano,
@@ -129,7 +134,9 @@ class DatabaseConnector:
             df = pd.read_sql(query, self.conn)
             return df
         except Exception as e:
-            st.error(f"Erro ao buscar dados: {e}")
+            # --- CORREÇÃO ---
+            # Em vez de st.error, armazene o erro
+            self.connection_error = f"Erro na query: {e}"
             return pd.DataFrame() 
 
     def close(self):
@@ -139,9 +146,23 @@ class DatabaseConnector:
 # --- MOTOR DE ANÁLISE QUÂNTICO ---
 class QuantumAnalyticsEngine:
     def __init__(self):
-        self.dados_originais = self.load_data()
+        # --- CORREÇÃO ---
+        # Essas variáveis vão guardar o status para exibição fora da cache
+        self.status_message = ""
+        self.status_icon = ""
+        self.is_mock_data = False
+        
+        (df, message, icon, is_mock) = self.load_data()
+        
+        self.status_message = message
+        self.status_icon = icon
+        self.is_mock_data = is_mock
+        
+        self.dados_originais = self._processar_dados(df)
         self.dados_filtrados = self.dados_originais.copy()
 
+    # --- CORREÇÃO ---
+    # Esta função NÃO PODE ter chamadas st.*
     def load_data(self):
         db = DatabaseConnector()
         
@@ -149,20 +170,31 @@ class QuantumAnalyticsEngine:
             df = db.get_data()
             db.close()
             
+            if db.connection_error:
+                # Houve um erro na query, usar mock
+                message = f"Erro na query. Simulação."
+                icon = "⚠️"
+                return (self._create_mock_data(), message, icon, True)
+
             if not df.empty:
-                st.sidebar.success(f"Conectado! {len(df)} registros carregados.", icon="✅")
+                message = f"Conectado! {len(df)} registros."
+                icon = "✅"
+                return (df, message, icon, False)
             else:
-                st.sidebar.success("Conectado! O banco de dados não retornou registros.", icon="ℹ️")
-            
-            return self._processar_dados(df)
+                message = "Conectado! Banco sem registros."
+                icon = "ℹ️"
+                return (df, message, icon, False)
         
+        # Se a conexão falhou
         if not db.SECRETS_AVAILABLE:
-            st.sidebar.error("Secrets não configurados. Usando dados de simulação.")
+            message = "Secrets não configurados. Simulação."
+            icon = "🔒"
         else:
-            st.sidebar.warning("Conexão falhou. Usando dados de simulação.", icon="🔌")
+            message = "Conexão falhou. Simulação."
+            icon = "🔌"
             
-        st.toast("Usando dados de simulação interna.", icon="🔬")
-        return self._processar_dados(self._create_mock_data())
+        return (self._create_mock_data(), message, icon, True)
+
 
     def _processar_dados(self, df):
         if df.empty:
@@ -206,17 +238,14 @@ class QuantumAnalyticsEngine:
         }
         return pd.DataFrame(data)
 
-    # *** CORREÇÃO PARTE 2: Converter mês e ano para INT antes de filtrar ***
     def aplicar_filtros(self, mes, ano, consultores, clientes, projetos):
         df = self.dados_originais.copy()
         if not df.empty:
-            # Converte o mês e ano (que vêm como string do selectbox) para int
             if mes != "TODOS": 
                 df = df[df['Mes'] == int(mes)]
             if ano != "TODOS": 
                 df = df[df['Ano'] == int(ano)]
                 
-            # Filtros de string (multiselect)
             if "TODOS" not in consultores: 
                 df = df[df['Consultor'].isin(consultores)]
             if "TODOS" not in clientes: 
@@ -316,29 +345,38 @@ st.markdown("---")
 
 # --- SIDEBAR DE CONTROLES (LÓGICA DO BOTÃO) ---
 with st.sidebar:
+    
+    # --- CORREÇÃO ---
+    # Exibe a mensagem de status AQUI, fora da cache
+    if engine.status_icon == "✅" or engine.status_icon == "ℹ️":
+        st.sidebar.success(engine.status_message, icon=engine.status_icon)
+    else:
+        # Se for "🔒" (sem secrets) ou "🔌" (conexão falhou) ou "⚠️" (erro de query)
+        st.sidebar.error(engine.status_message, icon=engine.status_icon)
+        
+    if engine.is_mock_data:
+        st.toast("Usando dados de simulação interna.", icon="🔬")
+
+    
     st.markdown("## 🌌 Controles da Orquestra")
     st.markdown("Filtre a superposição de dados para revelar a realidade desejada.")
 
     dados_disponiveis = engine.dados_originais
     
-    # *** CORREÇÃO PARTE 1: Converter Ano e Mês para STRINGS para o selectbox ***
     anos = sorted([str(ano) for ano in dados_disponiveis['Ano'].unique()]) if not dados_disponiveis.empty else []
     meses = sorted([str(mes) for mes in dados_disponiveis['Mes'].unique()]) if not dados_disponiveis.empty else []
     consultores = sorted(dados_disponiveis['Consultor'].unique().tolist()) if not dados_disponiveis.empty else []
     clientes = sorted(dados_disponiveis['Cliente'].unique().tolist()) if not dados_disponiveis.empty else []
     projetos = sorted(dados_disponiveis['Projeto'].unique().tolist()) if not dados_disponiveis.empty else []
 
-    # Selectbox para Ano (agora usa lista de strings)
     st.selectbox("Ano", ["TODOS"] + anos, 
                  key="filtro_ano", 
                  default=st.session_state.filtros_aplicados["ano"])
     
-    # Selectbox para Mês (agora usa lista de strings)
     st.selectbox("Mês", ["TODOS"] + meses, 
                  key="filtro_mes", 
                  default=st.session_state.filtros_aplicados["mes"])
     
-    # Multiselects (já eram strings, estão OK)
     st.multiselect("Consultores", ["TODOS"] + consultores, 
                    key="filtro_consultores", 
                    default=st.session_state.filtros_aplicados["consultores"])
