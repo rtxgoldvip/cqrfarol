@@ -406,90 +406,37 @@ class CoreQuantumReasoning:
                 df['Hrs_Real'] < df['Hrs_Prev'],
                 (df['Hrs_Prev'] - df['Hrs_Real']) * (df['VH_Venda'] - df['VH_Custo']), 0
             )
-            
 
-# --- INÍCIO DO SCRIPT DE DIAGNÓSTICO ---
-# Este script foi gerado para ajudar a depurar o erro 'ValueError: cannot reindex on an axis with duplicate labels'.
-# Por favor, insira este bloco de código no seu script 'app_v6.py'
-# *imediatamente antes* da linha onde o erro ocorre (linha 411 no seu traceback).
-#
-# Exemplo de onde inserir:
-#
-#    # Dimensões Quânticas - CORREÇÃO APLICADA AQUI
-#    with st.spinner("Criando dimensões quânticas..."):
-#        # CORREÇÃO: Resetar o índice para evitar problemas de alinhamento em operações booleanas
-#        df = df.reset_index(drop=True) # <--- Esta é a linha 408 no seu código
-#
-#        # --- INSERIR O SCRIPT DE DIAGNÓSTICO AQUI ---
-#        # (O conteúdo deste arquivo Python)
-#        # --- FIM DO SCRIPT DE DIAGNÓSTICO ---
-#
-#        df['Sangria_Risco_Absoluto'] = np.where( # <--- Esta é a linha 411 no seu código, onde o erro ocorre
-#            (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'),
-#            (df['Hrs_Real'] - df['Hrs_Prev']) * df['VH_Custo'], 0
-#        )
-#
-# Certifique-se de que a variável 'df' no script abaixo se refere ao DataFrame que está causando o problema.
-# No seu caso, o traceback indica que o DataFrame é 'df' dentro do método 'load_universo_dados'.
+            # --- INÍCIO DOS DADOS DE DIAGNÓSTICO ---
+            print("\n--- INÍCIO DOS DADOS DE DIAGNÓSTICO (antes da linha 411) ---")
+            print(f"Verificando DataFrame 'df' antes da operação booleana 'conditions':")
+            print(f"df.index.is_unique: {df.index.is_unique}")
+            if not df.index.is_unique:
+                duplicated_count = df.index.duplicated().sum()
+                print(f"Número total de ocorrências de índices duplicados: {duplicated_count}")
+                
+                # Identificar os valores de índice que são duplicados
+                # keep=False marca todas as ocorrências de um duplicado como True
+                duplicated_index_values = df.index[df.index.duplicated(keep=False)].unique()
+                
+                if not duplicated_index_values.empty:
+                    print(f"Exemplos de valores de índice duplicados (primeiros {min(len(duplicated_index_values), 5)}):")
+                    # Mostrar as linhas para os primeiros 5 valores de índice duplicados
+                    for i, idx_val in enumerate(duplicated_index_values.head(5)):
+                        print(f"  Índice duplicado '{idx_val}':")
+                        print(df.loc[idx_val])
+                        if i < min(len(duplicated_index_values), 5) - 1:
+                            print("  ---")
+                else:
+                    print("Nenhum valor de índice duplicado encontrado (após a verificação inicial).")
+            else:
+                print("O índice do DataFrame 'df' é único.")
 
-print("\n--- INÍCIO DO DIAGNÓSTICO DE DATAFRAME ---")
-print("Verificando o DataFrame 'df' antes da operação que causou o erro.")
-
-# 1. Informações básicas do DataFrame
-print("\n1. Informações gerais do DataFrame 'df':")
-# Verifica se 'df' é uma variável local e se é um DataFrame do pandas
-if 'df' in locals() and isinstance(df, pd.DataFrame):
-    print(f"  - Tipo: {type(df)}")
-    print(f"  - Shape: {df.shape}")
-    print(f"  - Está vazio? {df.empty}")
-    print("\n  - df.info():")
-    # Imprime informações detalhadas sobre o DataFrame, incluindo tipos de dados e contagem de não-nulos
-    df.info(verbose=True, show_counts=True)
-    print("\n  - Primeiras 5 linhas (df.head()):")
-    # Imprime as primeiras linhas do DataFrame em formato Markdown para melhor legibilidade no console
-    print(df.head().to_markdown(index=True))
-    print("\n  - Últimas 5 linhas (df.tail()):")
-    # Imprime as últimas linhas do DataFrame
-    print(df.tail().to_markdown(index=True))
-else:
-    print("  - A variável 'df' não é um DataFrame ou não está definida neste escopo.")
-    print("  - Por favor, ajuste o nome da variável no script de diagnóstico para o DataFrame correto.")
-    # Encerra o script de diagnóstico se o DataFrame não for encontrado ou for inválido
-    sys.exit("Diagnóstico encerrado: DataFrame 'df' não encontrado ou inválido.")
-
-# 2. Verificação da unicidade do índice
-print("\n2. Verificando a unicidade do índice do DataFrame 'df':")
-if df.index.is_unique:
-    print("  ✅ O índice do DataFrame 'df' é único. Isso é o esperado após df.reset_index(drop=True).")
-    print("     Se o erro ainda ocorre, pode haver um problema mais sutil ou o DataFrame foi modificado após o reset.")
-else:
-    print("  ❌ ATENÇÃO: O índice do DataFrame 'df' NÃO é único!")
-    print("     Este é o problema direto indicado pelo erro 'cannot reindex on an axis with duplicate labels'.")
-    # Encontra e imprime os valores de índice que estão duplicados
-    duplicate_indices = df.index[df.index.duplicated()].unique()
-    print(f"  - {len(duplicate_indices)} valores de índice duplicados encontrados.")
-    print("  - Exemplos de índices duplicados (primeiros 10):")
-    print(duplicate_indices.head(10).to_markdown())
-    print("\n  - Linhas com os primeiros 5 índices duplicados (mostrando todas as ocorrências):")
-    for idx in duplicate_indices.head(5):
-        print(f"\n    - Índice duplicado: {idx}")
-        # Mostra todas as linhas que possuem o índice duplicado
-        print(df.loc[idx].to_markdown(index=True))
-
-# 3. Verificação de linhas duplicadas (pode ser uma causa raiz indireta)
-print("\n3. Verificando a existência de linhas completamente duplicadas no DataFrame 'df':")
-if df.duplicated().any():
-    num_duplicated_rows = df.duplicated().sum()
-    print(f"  ❌ ATENÇÃO: {num_duplicated_rows} linhas completamente duplicadas encontradas no DataFrame 'df'.")
-    print("     Embora o 'reset_index(drop=True)' crie um índice único, linhas duplicadas podem indicar problemas nos dados de origem.")
-    print("  - Exemplos de linhas duplicadas (primeiras 5, mostrando todas as ocorrências):")
-    # Imprime as primeiras 10 linhas que são duplicadas (mantendo todas as ocorrências para visualização)
-    print(df[df.duplicated(keep=False)].head(10).to_markdown(index=True))
-else:
-    print("  ✅ Nenhuma linha completamente duplicada encontrada no DataFrame 'df'.")
-
-print("\n--- FIM DO DIAGNÓSTICO DE DATAFRAME ---")
-# --- FIM DO SCRIPT DE DIAGNÓSTICO ---
+            print("\nInformações do DataFrame 'df' (df.info()):")
+            df.info()
+            print("\nPrimeiras 5 linhas do DataFrame 'df' (df.head()):")
+            print(df.head())
+            print("--- FIM DOS DADOS DE DIAGNÓSTICO ---\n")
 
             conditions = [
                 (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'),
