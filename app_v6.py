@@ -218,13 +218,7 @@ def init_connection():
         DB_PASSWORD = st.secrets["db_credentials"]["password"]
 
         conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-            f"SERVER={DB_SERVER};"
-            f"DATABASE={DB_DATABASE};"
-            f"UID={DB_USERNAME};"
-            f"PWD={DB_PASSWORD};"
-            f"TrustServerCertificate=yes;"
-        )
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};-f"SERVER={DB_SERVER};-"            f"DATABASE={DB_DATABASE};-"            f"UID={DB_USERNAME};-"            f"PWD={DB_PASSWORD};-"            f"TrustServerCertificate=yes;-"        )
         return pyodbc.connect(conn_str, timeout=30)
     except Exception as e:
         st.error(f"❌ Erro de Conexão com Banco de Dados: {e}")
@@ -320,8 +314,10 @@ class CoreQuantumReasoning:
             df_fato['Ano'] = df_fato['Ano'].astype(int)
             df_fato['Mes'] = df_fato['Mes'].astype(int)
 
-            # Preparação do Fluxo de Caixa
+            # Preparação do Fluxo de Caixa (apenas com registros quitados)
             df_cr = self.df_cr_full.copy()
+            if 'quitado' in df_cr.columns:
+                df_cr = df_cr[df_cr['quitado'].astype(str).str.strip().str.upper() == 'S']
             df_cr['DtRec'] = pd.to_datetime(df_cr['DtRec'], errors='coerce')
             df_cr = df_cr.dropna(subset=['DtRec'])
             df_cr['Caixa_Ano'] = df_cr['DtRec'].dt.year
@@ -331,6 +327,8 @@ class CoreQuantumReasoning:
             cr_agg = df_cr.groupby(['Caixa_Ano', 'Caixa_Mes', 'Cliente'])['VlRec'].sum().reset_index()
 
             df_cp = self.df_cp_full.copy()
+            if 'quitado' in df_cp.columns:
+                df_cp = df_cp[df_cp['quitado'].astype(str).str.strip().str.upper() == 'S']
             df_cp['DtPagamento'] = pd.to_datetime(df_cp['DtPagamento'], errors='coerce')
             df_cp = df_cp.dropna(subset=['DtPagamento'])
             df_cp['Caixa_Ano'] = df_cp['DtPagamento'].dt.year
@@ -692,7 +690,7 @@ class CoreQuantumReasoning:
                         prescricoes.append({
                             'tipo': 'ALERTA', 'prioridade': 'ALTA',
                             'titulo': '📉 Anomalia de Rentabilidade Detectada',
-                            'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da sua 'assinatura histórica'.".replace('.',','),
+                            'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da sua 'assinatura histórica'!".replace('.',','),
                             'analise': f"A sua performance histórica consolidada indica uma margem média de {margem_hist*100:.1f}%. A queda atual pode ser um evento isolado ou o início de uma tendência preocupante.".replace('.',','),
                             'prescricao': """1. Analisar Piores Projetos: Identifique os projetos com as piores margens na 'Visão Executiva' para entender os detratores.\n2. Analisar Mix de Vendas: Verifique se houve uma concentração de vendas em projetos de margem naturalmente mais baixa.""",
                             'impacto_estimado': f'Retorno ao patamar histórico de {margem_hist*100:.1f}% de margem.'.replace('.',','),
@@ -708,7 +706,7 @@ class CoreQuantumReasoning:
                 prescricoes.append({
                     'tipo': 'EFICIENCIA', 'prioridade': 'ALTA',
                     'titulo': '💎 Otimização Estratégica do Mix de Serviços',
-                    'sintese': f"Projetos do tipo '{info['melhor']}' estão gerando {info['gap']*100:.1f} pontos percentuais a mais de margem que '{info['pior']}'.".replace('.',','),
+                    'sintese': f"Projetos do tipo '{info['melhor']}' estão gerando {info['gap']*100:.1f} pontos percentuais a mais de margem que '{info['pior']}'!".replace('.',','),
                     'analise': f"A análise de entrelaçamento quântico revela uma assimetria clara de rentabilidade no seu portfólio de serviços. Direcionar o foco para o tipo de serviço mais rentável pode alavancar significativamente o resultado consolidado.",
                     'prescricao': f"""1. Foco Comercial: Priorize a prospecção e venda de projetos do tipo '{info["melhor"]}'.\n2. Revisão de Precificação: Avalie a estrutura de custos e preços dos projetos '{info["pior"]}' para identificar oportunidades de melhoria.""",
                     'impacto_estimado': 'Aumento potencial de 5-10% na margem consolidada da empresa.',
@@ -1140,7 +1138,7 @@ with tab1:
 
 with tab2:
     st.markdown(f"## 💰 Painel de Fechamento - {mes_sel}/{ano_sel}")
-    st.info("Esta visão compara o Contábil (Faturado/Custo) com o Caixa (Recebido/Pago) do período selecionado.")
+    st.info("Esta visão compara o Contábil (Faturado/Custo) com o Caixa liquidado ('quitado' = 'S') no período selecionado.")
 
     apagar_df_export = pd.DataFrame()
     areceber_df_export = pd.DataFrame()
@@ -1163,15 +1161,19 @@ with tab2:
                 Total_Custo_Contabil=('Custo', 'sum')
             )
 
-            # Visão Caixa (baseada na data de pagamento)
+            # Visão Caixa (baseada na data de pagamento e status 'quitado')
             df_cp_full = crq.df_cp_full.copy()
             df_tec_full = crq.df_tec_full.copy()
             df_cp_full['DtPagamento'] = pd.to_datetime(df_cp_full['DtPagamento'], errors='coerce')
             
-            pagamentos_mes = df_cp_full[
-                (df_cp_full['DtPagamento'].dt.month == mes_sel_int) &
-                (df_cp_full['DtPagamento'].dt.year == ano_sel_int)
-            ].copy()
+            date_filter = (df_cp_full['DtPagamento'].dt.month == mes_sel_int) & (df_cp_full['DtPagamento'].dt.year == ano_sel_int)
+
+            if 'quitado' in df_cp_full.columns:
+                quitado_filter = df_cp_full['quitado'].astype(str).str.strip().str.upper() == 'S'
+                pagamentos_mes = df_cp_full[date_filter & quitado_filter].copy()
+            else:
+                st.info("Coluna 'quitado' não encontrada em Contas a Pagar. Total Pago reflete todos os registros com data de pagamento no mês.")
+                pagamentos_mes = df_cp_full[date_filter].copy()
 
             pagamentos_mes['Prestador'] = pd.to_numeric(pagamentos_mes['Prestador'], errors='coerce')
             pagamentos_mes['VlPago'] = pd.to_numeric(pagamentos_mes['VlPago'], errors='coerce').fillna(0)
@@ -1218,15 +1220,19 @@ with tab2:
                 Total_Faturado=('Receita', 'sum')
             )
             
-            # Visão Caixa (baseada na data de recebimento)
+            # Visão Caixa (baseada na data de recebimento e status 'quitado')
             df_cr_full = crq.df_cr_full.copy()
             df_cli_full = crq.df_cli_full.copy()
             df_cr_full['DtRec'] = pd.to_datetime(df_cr_full['DtRec'], errors='coerce')
 
-            recebimentos_mes = df_cr_full[
-                (df_cr_full['DtRec'].dt.month == mes_sel_int) &
-                (df_cr_full['DtRec'].dt.year == ano_sel_int)
-            ].copy()
+            date_filter_rec = (df_cr_full['DtRec'].dt.month == mes_sel_int) & (df_cr_full['DtRec'].dt.year == ano_sel_int)
+
+            if 'quitado' in df_cr_full.columns:
+                quitado_filter_rec = df_cr_full['quitado'].astype(str).str.strip().str.upper() == 'S'
+                recebimentos_mes = df_cr_full[date_filter_rec & quitado_filter_rec].copy()
+            else:
+                st.info("Coluna 'quitado' não encontrada em Contas a Receber. Total Recebido reflete todos os registros com data de recebimento no mês.")
+                recebimentos_mes = df_cr_full[date_filter_rec].copy()
             
             recebimentos_mes['Cliente'] = pd.to_numeric(recebimentos_mes['Cliente'], errors='coerce')
             recebimentos_mes['VlRec'] = pd.to_numeric(recebimentos_mes['VlRec'], errors='coerce').fillna(0)
@@ -1568,7 +1574,7 @@ with tab6:
             categorias = sorted(list(set([p['categoria'] for p in perguntas])))
             categoria_filtro = st.multiselect(
                 "Filtrar por categoria:", 
-                ['TODAS'] + categorias, 
+                ['TODOS'] + categorias, 
                 default=['TODAS'],
                 key="filtro_categoria"
             )
