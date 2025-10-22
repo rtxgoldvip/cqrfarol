@@ -245,7 +245,7 @@ def to_excel(df_rec, df_pag):
         if not df_pag.empty:
             df_pag.to_excel(writer, sheet_name='A_Pagar', index=False)
     return output.getvalue()
-    # ═══════════════════════════════════════════════════════════════════════════════
+# ═══════════════════════════════════════════════════════════════════════════════
 # MOTOR DE RACIOCÍNIO QUÂNTICO (CRQ) - CORRIGIDO
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -393,8 +393,11 @@ class CoreQuantumReasoning:
             df['Gap_Faturamento'] = df['Receita'] - df['Caixa_Recebido']
             df['Gap_Custo'] = df['Custo'] - df['Caixa_Pago']
 
-        # Dimensões Quânticas
+        # Dimensões Quânticas - CORREÇÃO APLICADA AQUI
         with st.spinner("Criando dimensões quânticas..."):
+            # CORREÇÃO: Resetar o índice para evitar problemas de alinhamento
+            df = df.reset_index(drop=True)
+            
             df['Sangria_Risco_Absoluto'] = np.where(
                 df['Hrs_Real'] > df['Hrs_Prev'],
                 (df['Hrs_Real'] - df['Hrs_Prev']) * df['VH_Custo'], 0
@@ -404,10 +407,18 @@ class CoreQuantumReasoning:
                 (df['Hrs_Prev'] - df['Hrs_Real']) * (df['VH_Venda'] - df['VH_Custo']), 0
             )
 
-            df['Status_Horas'] = 'OK'
-            df.loc[(df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'), 'Status_Horas'] = 'SANGRIA'
-            df.loc[(df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'FATURADO POR HRS REALIZADAS'), 'Status_Horas'] = 'OVERRUN_FATURAVEL'
-            df.loc[(df['Hrs_Real'] < df['Hrs_Prev']) & (df['Hrs_Prev'] > 0), 'Status_Horas'] = 'OCIOSIDADE'
+            # CORREÇÃO: Usar np.select em vez de loc para evitar problemas de índice
+            conditions = [
+                (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'),
+                (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'FATURADO POR HRS REALIZADAS'),
+                (df['Hrs_Real'] < df['Hrs_Prev']) & (df['Hrs_Prev'] > 0)
+            ]
+            choices = [
+                'SANGRIA',
+                'OVERRUN_FATURAVEL',
+                'OCIOSIDADE'
+            ]
+            df['Status_Horas'] = np.select(conditions, choices, default='OK')
 
             df['Score_Performance'] = (
                 (df['Margem'] * 0.4) +
@@ -427,6 +438,7 @@ class CoreQuantumReasoning:
                 else:
                     df[col_str] = df[col_str].astype(str).fillna('N/A')
             
+            # Remover duplicatas finais
             df = df.drop_duplicates(subset=['Mes', 'Ano', 'ConsultGest', 'ProjGest', 'IdGest2'])
 
         st.success("Universo de Dados Carregado e Sincronizado.")
@@ -750,8 +762,8 @@ class CoreQuantumReasoning:
                 'projetos': 0, 'score': 0,
                 'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
                 'gap_faturamento': 0, 'gap_custo': 0
-}
- # ═══════════════════════════════════════════════════════════════════════════════
+        }
+# ═══════════════════════════════════════════════════════════════════════════════
 # MOTOR DE PERGUNTAS SOCRÁTICAS (O CONSELHEIRO DIGITAL)
 # ═══════════════════════════════════════════════════════════════════════════════
 
