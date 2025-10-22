@@ -207,8 +207,9 @@ def init_connection():
         DB_USERNAME = st.secrets["db_credentials"]["username"]
         DB_PASSWORD = st.secrets["db_credentials"]["password"]
 
+        # CORREÇÃO: Removido o texto "_EXCLAMATION_" que invalidava a string de conexão.
         conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}}_EXCLAMATION_"
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
             f"SERVER={DB_SERVER};"
             f"DATABASE={DB_DATABASE};"
             f"UID={DB_USERNAME};"
@@ -340,8 +341,8 @@ class CoreQuantumReasoning:
 
         # Mapeamento e Métricas
         with st.spinner("Mapeando colunas e criando métricas..."):
-            # FIX: To prevent duplicate column names, which causes the error, we explicitly handle
-            # the replacement of the numeric 'TipoProj' key with its string description.
+            # CORREÇÃO: Previne a criação de colunas duplicadas 'TipoProj', que causava o erro.
+            # A coluna numérica original é descartada antes de renomear a coluna de descrição.
             if 'TipoProj' in df.columns and 'DescTipo' in df.columns:
                 df = df.drop(columns='TipoProj')
 
@@ -397,8 +398,8 @@ class CoreQuantumReasoning:
 
         # Dimensões Quânticas
         with st.spinner("Criando dimensões quânticas..."):
-            # CORREÇÃO: Resetar o índice para garantir alinhamento limpo em operações booleanas,
-            # prevenindo o erro 'cannot reindex on an axis with duplicate labels'.
+            # MELHORIA: Resetar o índice para garantir um alinhamento limpo e prevenir erros
+            # em operações booleanas, como o que foi reportado no traceback.
             df = df.reset_index(drop=True)
             
             df['Sangria_Risco_Absoluto'] = np.where(
