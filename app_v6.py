@@ -14,7 +14,7 @@ import pyodbc
 def format_brl(value, precision=2):
     """Formata um número para o padrão de moeda BRL (R$ 1.234,56)."""
     if pd.isna(value) or not isinstance(value, (int, float)):
-        return f"R$ 0,{ '0' * precision }"
+        return f"R$ 0,{'0' * precision}"
     if precision == 0:
         return f"R$ {value:,.0f}".replace(",", ".")
     return f"R$ {value:,.{precision}f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -218,7 +218,13 @@ def init_connection():
         DB_PASSWORD = st.secrets["db_credentials"]["password"]
 
         conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};-f"SERVER={DB_SERVER};-"            f"DATABASE={DB_DATABASE};-"            f"UID={DB_USERNAME};-"            f"PWD={DB_PASSWORD};-"            f"TrustServerCertificate=yes;-"        )
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"SERVER={DB_SERVER};"
+            f"DATABASE={DB_DATABASE};"
+            f"UID={DB_USERNAME};"
+            f"PWD={DB_PASSWORD};"
+            f"TrustServerCertificate=yes;"
+        )
         return pyodbc.connect(conn_str, timeout=30)
     except Exception as e:
         st.error(f"❌ Erro de Conexão com Banco de Dados: {e}")
@@ -1575,11 +1581,11 @@ with tab6:
             categoria_filtro = st.multiselect(
                 "Filtrar por categoria:", 
                 ['TODOS'] + categorias, 
-                default=['TODAS'],
+                default=['TODOS'],
                 key="filtro_categoria"
             )
 
-            if 'TODAS' in categoria_filtro or not categoria_filtro:
+            if 'TODOS' in categoria_filtro or not categoria_filtro:
                 perguntas_filtradas = perguntas
             else:
                 perguntas_filtradas = [p for p in perguntas if p['categoria'] in categoria_filtro]
