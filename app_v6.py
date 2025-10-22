@@ -1,13 +1,12 @@
-# ═══════════════════════════════════════════════════════════════════════════════
-# IMPORTS NECESSÁRIOS
-# ═══════════════════════════════════════════════════════════════════════════════
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import numpy as np
 from datetime import datetime
+from scipy import stats
 import io
+import re
 import pyodbc
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -196,19 +195,24 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 # ═══════════════════════════════════════════════════════════════════════════════
-# MOTOR DE CONEXÃO COM BANCO DE DADOS E UTILITÁRIOS
+# MOTOR DE CONEXÃO COM BANCO DE DADOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @st.cache_resource
 def init_connection():
     """Cria e retorna a conexão com o banco de dados."""
     try:
+        DB_SERVER = st.secrets["db_credentials"]["server"]
+        DB_DATABASE = st.secrets["db_credentials"]["database"]
+        DB_USERNAME = st.secrets["db_credentials"]["username"]
+        DB_PASSWORD = st.secrets["db_credentials"]["password"]
+
         conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}} A;"
-            f"SERVER={st.secrets['db_credentials']['server']};"
-            f"DATABASE={st.secrets['db_credentials']['database']};"
-            f"UID={st.secrets['db_credentials']['username']};"
-            f"PWD={st.secrets['db_credentials']['password']};"
+            f"DRIVER={{ODBC Driver 17 for SQL Server}}_EXCLAMATION_"
+            f"SERVER={DB_SERVER};"
+            f"DATABASE={DB_DATABASE};"
+            f"UID={DB_USERNAME};"
+            f"PWD={DB_PASSWORD};"
             f"TrustServerCertificate=yes;"
         )
         return pyodbc.connect(conn_str, timeout=30)
@@ -238,16 +242,16 @@ def to_excel(df_rec, df_pag):
         if not df_pag.empty:
             df_pag.to_excel(writer, sheet_name='A_Pagar', index=False)
     return output.getvalue()
-
 # ═══════════════════════════════════════════════════════════════════════════════
-# MOTOR DE RACIOCÍNIO QUÂNTICO (CRQ) - CORRIGIDO E REATORADO
+# MOTOR DE RACIOCÍNIO QUÂNTICO (CRQ) - CORRIGIDO
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class CoreQuantumReasoning:
     def __init__(self):
         self.conn = init_connection()
         if self.conn:
-            self.dados_universo = self.load_universo_dados()
+            with st.spinner('🌌 Carregando Universo de Dados do Banco...'):
+                self.dados_universo = self.load_universo_dados()
         else:
             st.error("Falha na inicialização do CRQ: Conexão com banco de dados falhou.")
             self.dados_universo = pd.DataFrame()
@@ -257,8 +261,10 @@ class CoreQuantumReasoning:
         self.prescricoes_ativas = []
         self.assinatura_historica = {}
 
-    def _fetch_all_tables(self):
-        """Busca todas as tabelas necessárias do banco de dados."""
+    def load_universo_dados(self):
+        if not self.conn:
+            return pd.DataFrame()
+
         QUERIES = {
             "g": "SELECT * FROM Tb_GestorFin2",
             "cr": "SELECT * FROM [Contas Receber]",
@@ -270,61 +276,75 @@ class CoreQuantumReasoning:
             "neg": "SELECT * FROM tb_neg",
             "st": "SELECT * FROM tb_StatusProj",
         }
+
         dfs = {}
+        all_loaded = True
         with st.spinner("Conectando e buscando dados mestre..."):
             for name, query in QUERIES.items():
                 dfs[name] = run_query(query, self.conn)
-        return dfs
+                if dfs[name].empty and name == 'g':
+                    all_loaded = False
 
-    def _prepare_main_dataframes(self, dfs):
-        """Limpa e pré-processa os DataFrames principais (fato, contas a receber/pagar)."""
-        # Tabela Fato
-        df_fato = dfs['g']
-        for col in ['ConsultGest', 'ProjGest', 'Ano', 'Mes']:
-            df_fato[col] = pd.to_numeric(df_fato[col].astype(str).str.strip(), errors='coerce')
-        df_fato = df_fato.dropna(subset=['Ano', 'Mes', 'ConsultGest', 'ProjGest'])
-        df_fato[['Ano', 'Mes']] = df_fato[['Ano', 'Mes']].astype(int)
+        if not all_loaded or 'g' not in dfs or dfs['g'].empty:
+            st.error("Tabela Fato (Tb_GestorFin2) está vazia.")
+            return pd.DataFrame()
 
-        # Contas a Receber (agregado)
-        df_cr = dfs['cr'].copy()
-        df_cr['DtRec'] = pd.to_datetime(df_cr['DtRec'], errors='coerce')
-        df_cr = df_cr.dropna(subset=['DtRec'])
-        df_cr['Caixa_Ano'] = df_cr['DtRec'].dt.year
-        df_cr['Caixa_Mes'] = df_cr['DtRec'].dt.month
-        df_cr['Cliente'] = pd.to_numeric(df_cr['Cliente'], errors='coerce')
-        df_cr['VlRec'] = pd.to_numeric(df_cr['VlRec'], errors='coerce').fillna(0)
-        cr_agg = df_cr.groupby(['Caixa_Ano', 'Caixa_Mes', 'Cliente'])['VlRec'].sum().reset_index()
+        try:
+            df_fato = dfs['g']
+            df_fato['ConsultGest'] = pd.to_numeric(df_fato['ConsultGest'], errors='coerce')
+            df_fato['ProjGest'] = pd.to_numeric(df_fato['ProjGest'], errors='coerce')
+            df_fato['Ano'] = pd.to_numeric(df_fato['Ano'].astype(str).str.strip(), errors='coerce')
+            df_fato['Mes'] = pd.to_numeric(df_fato['Mes'].astype(str).str.strip(), errors='coerce')
+            df_fato = df_fato.dropna(subset=['Ano', 'Mes', 'ConsultGest', 'ProjGest'])
+            df_fato['Ano'] = df_fato['Ano'].astype(int)
+            df_fato['Mes'] = df_fato['Mes'].astype(int)
 
-        # Contas a Pagar (agregado)
-        df_cp = dfs['cp'].copy()
-        df_cp['DtPagamento'] = pd.to_datetime(df_cp['DtPagamento'], errors='coerce')
-        df_cp = df_cp.dropna(subset=['DtPagamento'])
-        df_cp['Caixa_Ano'] = df_cp['DtPagamento'].dt.year
-        df_cp['Caixa_Mes'] = df_cp['DtPagamento'].dt.month
-        df_cp['Prestador'] = pd.to_numeric(df_cp['Prestador'], errors='coerce')
-        df_cp['VlPago'] = pd.to_numeric(df_cp['VlPago'], errors='coerce').fillna(0)
-        cp_agg = df_cp.groupby(['Caixa_Ano', 'Caixa_Mes', 'Prestador'])['VlPago'].sum().reset_index()
+            # Preparação do Fluxo de Caixa
+            df_cr = dfs['cr'].copy()
+            df_cr['DtRec'] = pd.to_datetime(df_cr['DtRec'], errors='coerce')
+            df_cr = df_cr.dropna(subset=['DtRec'])
+            df_cr['Caixa_Ano'] = df_cr['DtRec'].dt.year
+            df_cr['Caixa_Mes'] = df_cr['DtRec'].dt.month
+            df_cr['Cliente'] = pd.to_numeric(df_cr['Cliente'], errors='coerce')
+            df_cr['VlRec'] = pd.to_numeric(df_cr['VlRec'], errors='coerce').fillna(0)
+            cr_agg = df_cr.groupby(['Caixa_Ano', 'Caixa_Mes', 'Cliente'])['VlRec'].sum().reset_index()
 
-        return df_fato, cr_agg, cp_agg
+            df_cp = dfs['cp'].copy()
+            df_cp['DtPagamento'] = pd.to_datetime(df_cp['DtPagamento'], errors='coerce')
+            df_cp = df_cp.dropna(subset=['DtPagamento'])
+            df_cp['Caixa_Ano'] = df_cp['DtPagamento'].dt.year
+            df_cp['Caixa_Mes'] = df_cp['DtPagamento'].dt.month
+            df_cp['Prestador'] = pd.to_numeric(df_cp['Prestador'], errors='coerce')
+            df_cp['VlPago'] = pd.to_numeric(df_cp['VlPago'], errors='coerce').fillna(0)
+            cp_agg = df_cp.groupby(['Caixa_Ano', 'Caixa_Mes', 'Prestador'])['VlPago'].sum().reset_index()
 
-    def _merge_dimensions(self, df_fato, dfs):
-        """Realiza o merge da tabela fato com todas as tabelas de dimensão."""
-        df = df_fato
-        def safe_merge(df_left, df_right, **kwargs):
-            return df_left if df_right.empty else pd.merge(df_left, df_right, **kwargs)
+        except Exception as e:
+            st.error(f"Erro na preparação dos dados: {e}")
+            return pd.DataFrame()
 
+        # Executar Joins
         with st.spinner("Entrelaçando dimensões..."):
+            df = df_fato
+            
+            def safe_merge(df_left, df_right, **kwargs):
+                if df_right.empty:
+                    return df_left
+                return pd.merge(df_left, df_right, **kwargs)
+
             df = safe_merge(df, dfs['tec'], left_on='ConsultGest', right_on='AutNumTec', how='left')
             df = safe_merge(df, dfs['p'], left_on='ProjGest', right_on='AutNumProj', how='left', suffixes=('', '_proj'))
             df = safe_merge(df, dfs['cli'], left_on='CodCliProj', right_on='AutNumCli', how='left')
             df = safe_merge(df, dfs['tp'], left_on='TipoProj', right_on='AutNumTipo', how='left')
             df = safe_merge(df, dfs['neg'], left_on='CodNegProj', right_on='AutNumNeg', how='left')
             df = safe_merge(df, dfs['st'], left_on='StatusProj', right_on='AutNumStatus', how='left')
-        return df
 
-    def _engineer_features(self, df, cr_agg, cp_agg):
-        """Cria novas métricas, renomeia colunas e aplica a lógica de negócio."""
+        # Mapeamento e Métricas
         with st.spinner("Mapeando colunas e criando métricas..."):
+            # FIX: To prevent duplicate column names, which causes the error, we explicitly handle
+            # the replacement of the numeric 'TipoProj' key with its string description.
+            if 'TipoProj' in df.columns and 'DescTipo' in df.columns:
+                df = df.drop(columns='TipoProj')
+
             mapa_colunas = {
                 'QtHrReal': 'Hrs_Real', 'QtHrOrc': 'Hrs_Prev', 'ReceitaReal': 'Receita',
                 'CustoReal': 'Custo', 'PercMgReal': 'Margem_Fracao', 'VlHrOrc': 'VH_Venda',
@@ -332,78 +352,99 @@ class CoreQuantumReasoning:
                 'VlTTFat': 'Vl_Faturado_Contrato', 'NomeTec': 'Consultor', 'DescCli': 'Cliente',
                 'DescProj': 'Projeto', 'DescTipo': 'TipoProj',
             }
-            df = df.rename(columns={k: v for k, v in mapa_colunas.items() if k in df.columns})
 
-            colunas_numericas = ['Hrs_Real', 'Hrs_Prev', 'Receita', 'Custo', 'Margem_Fracao', 'VH_Venda', 'VH_Custo', 'Receita_Orc', 'Custo_Orc', 'Vl_Faturado_Contrato']
-            for col in colunas_numericas:
-                df[col] = pd.to_numeric(df.get(col), errors='coerce').fillna(0)
-
+            cols_existentes = {k: v for k, v in mapa_colunas.items() if k in df.columns}
+            df = df.rename(columns=cols_existentes)
+            
+            colunas_numericas_app = ['Hrs_Real', 'Hrs_Prev', 'Receita', 'Custo', 'Margem_Fracao',
+                                   'VH_Venda', 'VH_Custo', 'Receita_Orc', 'Custo_Orc', 'Vl_Faturado_Contrato']
+            
+            for col in colunas_numericas_app:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+                else:
+                    df[col] = 0
+            
             df['Margem'] = np.where(df['Receita'] > 0, (df['Receita'] - df['Custo']) / df['Receita'], 0)
             df['Lucro'] = df['Receita'] - df['Custo']
             df['Desvio_Hrs'] = df['Hrs_Real'] - df['Hrs_Prev']
-            df['Eficiencia'] = np.where(df['Hrs_Prev'] > 0, df['Hrs_Real'] / df['Hrs_Prev'], 1)
+            df['Eficiencia'] = np.where(df['Hrs_Prev'] > 0, (df['Hrs_Real'] / df['Hrs_Prev']), 1)
             df['ROI_Hora'] = np.where(df['Hrs_Real'] > 0, df['Lucro'] / df['Hrs_Real'], 0)
             df['Produtividade'] = np.where(df['Hrs_Real'] > 0, df['Receita'] / df['Hrs_Real'], 0)
+            
             df['Data'] = pd.to_datetime(df['Ano'].astype(str) + '-' + df['Mes'].astype(str) + '-01', errors='coerce')
             df = df.dropna(subset=['Data'])
 
+        # Entrelaçamento de Caixa
         with st.spinner("Entrelaçando dados de Fluxo de Caixa..."):
-            df = pd.merge(df, cr_agg, left_on=['Ano', 'Mes', 'CodCliProj'], right_on=['Caixa_Ano', 'Caixa_Mes', 'Cliente'], how='left')
-            df = pd.merge(df, cp_agg, left_on=['Ano', 'Mes', 'ConsultGest'], right_on=['Caixa_Ano', 'Caixa_Mes', 'Prestador'], how='left')
+            df = pd.merge(df, cr_agg, 
+                          left_on=['Ano', 'Mes', 'CodCliProj'], 
+                          right_on=['Caixa_Ano', 'Caixa_Mes', 'Cliente'], 
+                          how='left', suffixes=('', '_cr'))
+            
+            df = pd.merge(df, cp_agg, 
+                          left_on=['Ano', 'Mes', 'ConsultGest'], 
+                          right_on=['Caixa_Ano', 'Caixa_Mes', 'Prestador'], 
+                          how='left', suffixes=('', '_cp'))
+
             df = df.rename(columns={'VlRec': 'Caixa_Recebido', 'VlPago': 'Caixa_Pago'})
-            df[['Caixa_Recebido', 'Caixa_Pago']] = df[['Caixa_Recebido', 'Caixa_Pago']].fillna(0)
+            df['Caixa_Recebido'] = df['Caixa_Recebido'].fillna(0)
+            df['Caixa_Pago'] = df['Caixa_Pago'].fillna(0)
+            
             df['Lucro_Caixa'] = df['Caixa_Recebido'] - df['Caixa_Pago']
             df['Gap_Faturamento'] = df['Receita'] - df['Caixa_Recebido']
             df['Gap_Custo'] = df['Custo'] - df['Caixa_Pago']
 
+        # Dimensões Quânticas
         with st.spinner("Criando dimensões quânticas..."):
-            # CORREÇÃO CRÍTICA: Resetar o índice após os merges para evitar o erro de alinhamento.
-            # Esta é a causa raiz do `ValueError: cannot reindex on an axis with duplicate labels`.
+            # CORREÇÃO: Resetar o índice para garantir alinhamento limpo em operações booleanas,
+            # prevenindo o erro 'cannot reindex on an axis with duplicate labels'.
             df = df.reset_index(drop=True)
-
-            df['Sangria_Risco_Absoluto'] = np.where(df['Hrs_Real'] > df['Hrs_Prev'], (df['Hrs_Real'] - df['Hrs_Prev']) * df['VH_Custo'], 0)
-            df['Ociosidade_Risco_Absoluto'] = np.where(df['Hrs_Real'] < df['Hrs_Prev'], (df['Hrs_Prev'] - df['Hrs_Real']) * (df['VH_Venda'] - df['VH_Custo']), 0)
+            
+            df['Sangria_Risco_Absoluto'] = np.where(
+                df['Hrs_Real'] > df['Hrs_Prev'],
+                (df['Hrs_Real'] - df['Hrs_Prev']) * df['VH_Custo'], 0
+            )
+            df['Ociosidade_Risco_Absoluto'] = np.where(
+                df['Hrs_Real'] < df['Hrs_Prev'],
+                (df['Hrs_Prev'] - df['Hrs_Real']) * (df['VH_Venda'] - df['VH_Custo']), 0
+            )
 
             conditions = [
                 (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'),
                 (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'FATURADO POR HRS REALIZADAS'),
                 (df['Hrs_Real'] < df['Hrs_Prev']) & (df['Hrs_Prev'] > 0)
             ]
-            choices = ['SANGRIA', 'OVERRUN_FATURAVEL', 'OCIOSIDADE']
+            choices = [
+                'SANGRIA',
+                'OVERRUN_FATURAVEL',
+                'OCIOSIDADE'
+            ]
             df['Status_Horas'] = np.select(conditions, choices, default='OK')
 
-            df['Score_Performance'] = ((df['Margem'] * 0.4) + (np.clip(df['Eficiencia'], 0, 2) / 2 * 0.3) + (np.clip(df['ROI_Hora'] / 100, 0, 1) * 0.3)) * 100
-            df['Status_Performance'] = pd.cut(df['Score_Performance'], bins=[-np.inf, 40, 70, np.inf], labels=['CRÍTICO', 'ATENÇÃO', 'EXCELENTE'], right=False)
+            df['Score_Performance'] = (
+                (df['Margem'] * 0.4) +
+                (np.clip(df['Eficiencia'], 0, 2) / 2 * 0.3) +
+                (np.clip(df['ROI_Hora'] / 100, 0, 1) * 0.3)
+            ) * 100
 
-            for col_str in ['Consultor', 'Cliente', 'Projeto', 'TipoProj']:
+            df['Status_Performance'] = pd.cut(df['Score_Performance'],
+                                 bins=[-np.inf, 40, 70, np.inf],
+                                 labels=['CRÍTICO', 'ATENÇÃO', 'EXCELENTE'],
+                                 right=False)
+
+            colunas_string_app = ['Consultor', 'Cliente', 'Projeto', 'TipoProj']
+            for col_str in colunas_string_app:
                 if col_str not in df.columns:
                     df[col_str] = 'N/A'
                 else:
                     df[col_str] = df[col_str].astype(str).fillna('N/A')
-
+            
+            # Remover duplicatas finais
             df = df.drop_duplicates(subset=['Mes', 'Ano', 'ConsultGest', 'ProjGest', 'IdGest2'])
+
+        st.success("Universo de Dados Carregado e Sincronizado.")
         return df
-
-    def load_universo_dados(self):
-        """Orquestra o processo completo de carregamento e processamento de dados."""
-        if not self.conn:
-            return pd.DataFrame()
-        try:
-            with st.spinner('🌌 Carregando Universo de Dados do Banco...'):
-                all_dfs = self._fetch_all_tables()
-                if 'g' not in all_dfs or all_dfs['g'].empty:
-                    st.error("Tabela Fato (Tb_GestorFin2) está vazia ou não foi carregada.")
-                    return pd.DataFrame()
-
-                df_fato, cr_agg, cp_agg = self._prepare_main_dataframes(all_dfs)
-                df_merged = self._merge_dimensions(df_fato, all_dfs)
-                df_final = self._engineer_features(df_merged, cr_agg, cp_agg)
-
-            st.success("Universo de Dados Carregado e Sincronizado.")
-            return df_final
-        except Exception as e:
-            st.error(f"Falha crítica no carregamento do universo de dados: {e}")
-            return pd.DataFrame()
 
     def aplicar_colapso_quantico(self, filtros):
         if self.dados_universo.empty:
@@ -696,8 +737,6 @@ class CoreQuantumReasoning:
             custo_total = df['Custo'].sum()
             lucro_total = df['Lucro'].sum()
             
-            # A lógica de drop_duplicates é usada para somar valores de caixa únicos por transação,
-            # evitando a contagem múltipla que ocorre após o merge com a tabela fato (granularidade diferente).
             df_rec_unicos = df.drop_duplicates(subset=['Ano', 'Mes', 'CodCliProj', 'Caixa_Recebido'])
             caixa_recebido_total = df_rec_unicos['Caixa_Recebido'].sum()
 
@@ -733,7 +772,6 @@ class CoreQuantumReasoning:
                 'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
                 'gap_faturamento': 0, 'gap_custo': 0
         }
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # MOTOR DE PERGUNTAS SOCRÁTICAS (O CONSELHEIRO DIGITAL)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -761,17 +799,16 @@ class SocraticQuestioningEngine:
         perguntas = []
 
         # 1. PERGUNTA CRÍTICA: O GAP DE CAIXA
-        if metricas['receita'] > 0:
-            gap_lucro = metricas['lucro'] - metricas['lucro_caixa']
-            if abs(gap_lucro) > (metricas['receita'] * 0.5):
-                perguntas.append({
-                    'categoria': 'RISCO CRÍTICO',
-                    'pergunta': f"Notei um 'descolamento' de R$ {gap_lucro:,.0f} entre seu Lucro Contábil (R$ {metricas['lucro']:,.0f}) e seu Resultado de Caixa (R$ {metricas['lucro_caixa']:,.0f}). "
-                               f"Sua operação está gerando faturamento, mas o caixa não está acompanhando. Sabemos se isso é inadimplência, um descasamento de prazo extremo, ou uma falha na forma como os dados de recebimento estão sendo ligados?",
-                    'contexto': f"Gap Contábil vs. Caixa: R$ {gap_lucro:,.0f}",
-                    'profundidade': 'CRÍTICA',
-                    'icone': '🚨',
-                })
+        gap_lucro = metricas['lucro'] - metricas['lucro_caixa']
+        if abs(gap_lucro) > (metricas['receita'] * 0.5) and metricas['receita'] > 0:
+            perguntas.append({
+                'categoria': 'RISCO CRÍTICO',
+                'pergunta': f"Notei um 'descolamento' de R$ {gap_lucro:,.0f} entre seu Lucro Contábil (R$ {metricas['lucro']:,.0f}) e seu Resultado de Caixa (R$ {metricas['lucro_caixa']:,.0f}). "
+                           f"Sua operação está gerando faturamento, mas o caixa não está acompanhando. Sabemos se isso é inadimplência, um descasamento de prazo extremo, ou uma falha na forma como os dados de recebimento estão sendo ligados?",
+                'contexto': f"Gap Contábil vs. Caixa: R$ {gap_lucro:,.0f}",
+                'profundidade': 'CRÍTICA',
+                'icone': '🚨',
+            })
 
         # 2. PERGUNTA SOBRE RENTABILIDADE (vs. HISTÓRICO)
         if hist and 'margem_avg' in hist and hist['margem_avg'] != 0:
@@ -845,9 +882,9 @@ class SocraticQuestioningEngine:
         # 7. PERGUNTA SOBRE OCIOSIDADE
         if 'Status_Horas' in df.columns:
             ociosidade_df = df[df['Status_Horas'] == 'OCIOSIDADE']
-            if not ociosidade_df.empty and metricas['lucro'] > 0:
+            if not ociosidade_df.empty:
                 lucro_perdido = ociosidade_df['Ociosidade_Risco_Absoluto'].sum()
-                if lucro_perdido > (metricas['lucro'] * 0.1):
+                if lucro_perdido > (metricas['lucro'] * 0.1) and metricas['lucro'] > 0:
                     perguntas.append({
                         'categoria': 'OPORTUNIDADE',
                         'pergunta': f"Identifiquei um lucro potencial perdido de R$ {lucro_perdido:,.0f} devido a horas orçadas mas não realizadas. "
@@ -859,25 +896,6 @@ class SocraticQuestioningEngine:
         
         self.perguntas_geradas = perguntas
         return perguntas
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# FUNÇÕES AUXILIARES DA INTERFACE
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def _generate_closing_summary(df, group_by_col, value_col_contabil, value_col_caixa, hours_col, paid_received_col_name):
-    """Função auxiliar para gerar tabelas de fechamento (A Pagar/A Receber)."""
-    contabil_agg = df.groupby(group_by_col).agg(
-        Horas=(hours_col, 'sum'),
-        Total_Contabil=(value_col_contabil, 'sum')
-    )
-    caixa_agg = df.drop_duplicates(subset=[group_by_col, value_col_caixa]).groupby(group_by_col)[value_col_caixa].sum().rename(paid_received_col_name)
-    
-    summary_df = pd.concat([contabil_agg, caixa_agg], axis=1).fillna(0)
-    summary_df = summary_df[summary_df.index != 'N/A']
-    summary_df['Saldo_Pendente'] = summary_df['Total_Contabil'] - summary_df[paid_received_col_name]
-    summary_df = summary_df.sort_values('Total_Contabil', ascending=False).reset_index()
-    
-    return summary_df[summary_df['Total_Contabil'] > 0]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # INICIALIZAÇÃO DOS MOTORES (CRQ e Socrático)
@@ -894,7 +912,6 @@ if 'socratic_engine' not in st.session_state:
 
 crq = st.session_state.crq
 socratic = st.session_state.socratic_engine
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # HEADER PREMIUM DO SISTEMA
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -954,6 +971,7 @@ with st.sidebar:
 
     st.markdown("---")
 
+    # Aplicar filtros
     filtros = {
         'consultores': cons_sel,
         'clientes': cli_sel,
@@ -963,11 +981,15 @@ with st.sidebar:
         'ano': ano_sel
     }
     
+    # Colapso Quântico
     df_filtrado = crq.aplicar_colapso_quantico(filtros)
+
+    # Análises Pós-Colapso
     crq.detectar_entrelacements()
     prescricoes = crq.gerar_prescricoes_quantum() if ia_ativa else []
     metricas = crq.calcular_metricas_consolidadas()
 
+    # Stats rápidas
     st.markdown("### 📊 Status Quantum")
     st.metric("Registros Ativos", len(df_filtrado))
     st.metric("Score Médio", f"{metricas['score']:.1f}")
@@ -976,11 +998,12 @@ with st.sidebar:
     if st.button("🔄 Reprocessar Dados", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
-        st.session_state.pop('crq', None)
-        st.session_state.pop('socratic_engine', None)
+        if 'crq' in st.session_state:
+            del st.session_state['crq']
+        if 'socratic_engine' in st.session_state:
+            del st.session_state['socratic_engine']
         st.rerun()
-
-# ═══════════════════════════════════════════════════════════════════════════════
+    # ═══════════════════════════════════════════════════════════════════════════════
 # INTERFACE PRINCIPAL - TABS
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -993,6 +1016,10 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "🤔 Consultor Socrático"
 ])
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 1: VISÃO EXECUTIVA (GRÁFICOS PREMIUM)
+# ═══════════════════════════════════════════════════════════════════════════════
+
 with tab1:
     st.markdown(f"## 📈 Dashboard Executivo (Visão Contábil) - {mes_sel}/{ano_sel}")
 
@@ -1003,9 +1030,12 @@ with tab1:
         st.metric("📊 Lucro Contábil", f"R$ {metricas['lucro']:,.0f}")
     with col3:
         margem_display = metricas['margem'] * 100
-        st.metric("📈 Margem Média", f"{margem_display:.1f}%", delta_color="normal" if margem_display > 40 else "inverse")
+        st.metric("📈 Margem Média", f"{margem_display:.1f}%",
+            delta_color="normal" if margem_display > 40 else "inverse")
     with col4:
-        st.metric("⏱️ Horas Realizadas", f"{metricas['hrs_real']:.0f}h", delta=f"{metricas['hrs_real']-metricas['hrs_prev']:.0f}h vs Previsto", delta_color="inverse" if metricas['hrs_real'] > metricas['hrs_prev'] else "normal")
+        st.metric("⏱️ Horas Realizadas", f"{metricas['hrs_real']:.0f}h",
+            delta=f"{metricas['hrs_real']-metricas['hrs_prev']:.0f}h vs Previsto",
+            delta_color="inverse" if metricas['hrs_real'] > metricas['hrs_prev'] else "normal")
     with col5:
         st.metric("💎 ROI por Hora", f"R$ {metricas['roi_hora']:.2f}")
 
@@ -1024,10 +1054,26 @@ with tab1:
                     ROI_Hora=('ROI_Hora', 'mean'),
                 ).nlargest(15, 'Receita').reset_index()
                 perf_proj = perf_proj[perf_proj['Projeto'] != 'N/A']
+
                 perf_proj['Margem_Media_Perc'] = perf_proj['Margem_Media'] * 100
 
-                fig = px.scatter(perf_proj, x='Receita', y='Margem_Media_Perc', size='Horas_Trabalhadas', color='ROI_Hora', hover_name='Projeto', color_continuous_scale='Viridis', size_max=50, hover_data={'Margem_Media_Perc': ':.1f%', 'Receita': ':,.0f', 'Horas_Trabalhadas': ':.0f'})
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), xaxis_title="Receita (R$)", yaxis_title="Margem Média (%)", height=450, coloraxis_colorbar=dict(title="ROI/Hora"))
+                fig = px.scatter(
+                    perf_proj,
+                    x='Receita',
+                    y='Margem_Media_Perc',
+                    size='Horas_Trabalhadas',
+                    color='ROI_Hora',
+                    hover_name='Projeto',
+                    color_continuous_scale='Viridis',
+                    size_max=50,
+                    hover_data={'Margem_Media_Perc': ':.1f%', 'Receita': ':,.0f', 'Horas_Trabalhadas': ':.0f'}
+                )
+                fig.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'), xaxis_title="Receita (R$)",
+                    yaxis_title="Margem Média (%)", height=450,
+                    coloraxis_colorbar=dict(title="ROI/Hora")
+                )
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.warning(f"Erro ao gerar gráfico Performance por Projeto: {e}")
@@ -1038,18 +1084,39 @@ with tab1:
         st.markdown(f"### 💰 Receita & Rentabilidade por Cliente (Top 15)")
         if not df_filtrado.empty:
             try:
-                rec_cliente = df_filtrado.groupby('Cliente').agg(Receita_Total=('Receita', 'sum'), Margem_Media=('Margem', 'mean')).nlargest(15, 'Receita_Total').sort_values('Receita_Total')
+                rec_cliente = df_filtrado.groupby('Cliente').agg(
+                    Receita_Total=('Receita', 'sum'),
+                    Margem_Media=('Margem', 'mean')
+                ).nlargest(15, 'Receita_Total').sort_values('Receita_Total')
                 rec_cliente = rec_cliente[rec_cliente.index != 'N/A']
                 rec_cliente['Margem_Media_Perc'] = rec_cliente['Margem_Media'] * 100
 
-                fig = px.bar(rec_cliente, x='Receita_Total', y=rec_cliente.index, orientation='h', color='Margem_Media_Perc', color_continuous_scale='Blues', text='Receita_Total', hover_data={'Margem_Media_Perc': ':.1f%'})
+                fig = px.bar(
+                    rec_cliente,
+                    x='Receita_Total',
+                    y=rec_cliente.index,
+                    orientation='h',
+                    color='Margem_Media_Perc',
+                    color_continuous_scale='Blues',
+                    text='Receita_Total',
+                    hover_data={'Margem_Media_Perc': ':.1f%'}
+                )
                 fig.update_traces(texttemplate='R$ %{text:,.0f}', textposition='outside')
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), xaxis_title="Receita (R$)", yaxis_title="", height=450, coloraxis_colorbar=dict(title="Margem Média %"))
+                fig.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'), xaxis_title="Receita (R$)",
+                    yaxis_title="", height=450,
+                    coloraxis_colorbar=dict(title="Margem Média %")
+                )
                 st.plotly_chart(fig, use_container_width=True)
             except Exception as e:
                 st.warning(f"Erro ao gerar gráfico Receita por Cliente: {e}")
         else:
             st.info("📊 Sem dados disponíveis para este filtro")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 2: FECHAMENTO (COM EXPORTAÇÃO EXCEL)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab2:
     st.markdown(f"## 💰 Painel de Fechamento - {mes_sel}/{ano_sel}")
@@ -1064,10 +1131,31 @@ with tab2:
         st.markdown("### 💸 A Pagar - Consultores")
         if not df_filtrado.empty:
             try:
-                apagar_df_export = _generate_closing_summary(df_filtrado, 'Consultor', 'Custo', 'Caixa_Pago', 'Hrs_Real', 'Total_Pago')
-                st.dataframe(apagar_df_export.style.format({'Horas': '{:.0f}h', 'Total_Contabil': 'R$ {:,.2f}', 'Total_Pago': 'R$ {:,.2f}', 'Saldo_Pendente': 'R$ {:,.2f}'}), use_container_width=True, height=400)
-                st.metric("Total Custo Contábil", f"R$ {apagar_df_export['Total_Contabil'].sum():,.2f}")
-                st.metric("Total Efetivamente Pago", f"R$ {apagar_df_export['Total_Pago'].sum():,.2f}", delta=f"R$ {apagar_df_export['Saldo_Pendente'].sum():,.2f} Pendente", delta_color="inverse" if apagar_df_export['Saldo_Pendente'].sum() > 0 else "off")
+                custo_contabil_agg = df_filtrado.groupby('Consultor').agg(
+                    Horas_Trabalhadas=('Hrs_Real', 'sum'),
+                    Total_Custo_Contabil=('Custo', 'sum')
+                )
+                custo_caixa_agg = df_filtrado.drop_duplicates(subset=['Consultor', 'Caixa_Pago']).groupby('Consultor')['Caixa_Pago'].sum().rename('Total_Pago')
+
+                apagar = pd.concat([custo_contabil_agg, custo_caixa_agg], axis=1).fillna(0)
+                apagar = apagar[apagar.index != 'N/A']
+                apagar['Saldo_Pendente'] = apagar['Total_Custo_Contabil'] - apagar['Total_Pago']
+                apagar = apagar.sort_values('Total_Custo_Contabil', ascending=False).reset_index()
+                
+                apagar_df_export = apagar[apagar['Total_Custo_Contabil'] > 0]
+                st.dataframe(
+                    apagar_df_export.style.format({
+                        'Horas_Trabalhadas': '{:.0f}h',
+                        'Total_Custo_Contabil': 'R$ {:,.2f}',
+                        'Total_Pago': 'R$ {:,.2f}',
+                        'Saldo_Pendente': 'R$ {:,.2f}'
+                    }), use_container_width=True, height=400
+                )
+                
+                st.metric("Total Custo Contábil", f"R$ {apagar['Total_Custo_Contabil'].sum():,.2f}")
+                st.metric("Total Efetivamente Pago", f"R$ {apagar['Total_Pago'].sum():,.2f}",
+                          delta=f"R$ {apagar['Saldo_Pendente'].sum():,.2f} Pendente",
+                          delta_color="inverse" if apagar['Saldo_Pendente'].sum() > 0 else "off")
             except Exception as e:
                 st.warning(f"Erro ao gerar tabela A Pagar: {e}")
         else:
@@ -1077,10 +1165,31 @@ with tab2:
         st.markdown("### 💳 A Receber - Clientes")
         if not df_filtrado.empty:
             try:
-                areceber_df_export = _generate_closing_summary(df_filtrado, 'Cliente', 'Receita', 'Caixa_Recebido', 'Hrs_Real', 'Total_Recebido')
-                st.dataframe(areceber_df_export.style.format({'Horas': '{:.0f}h', 'Total_Contabil': 'R$ {:,.2f}', 'Total_Recebido': 'R$ {:,.2f}', 'Saldo_Pendente': 'R$ {:,.2f}'}), use_container_width=True, height=400)
-                st.metric("Total Faturado (Contábil)", f"R$ {areceber_df_export['Total_Contabil'].sum():,.2f}")
-                st.metric("Total Efetivamente Recebido", f"R$ {areceber_df_export['Total_Recebido'].sum():,.2f}", delta=f"R$ {areceber_df_export['Saldo_Pendente'].sum():,.2f} Pendente", delta_color="inverse" if areceber_df_export['Saldo_Pendente'].sum() > 0 else "off")
+                receita_contabil_agg = df_filtrado.groupby('Cliente').agg(
+                    Horas_Faturadas=('Hrs_Real', 'sum'),
+                    Total_Faturado=('Receita', 'sum')
+                )
+                receita_caixa_agg = df_filtrado.drop_duplicates(subset=['Cliente', 'Caixa_Recebido']).groupby('Cliente')['Caixa_Recebido'].sum().rename('Total_Recebido')
+                
+                areceber = pd.concat([receita_contabil_agg, receita_caixa_agg], axis=1).fillna(0)
+                areceber = areceber[areceber.index != 'N/A']
+                areceber['Saldo_Pendente'] = areceber['Total_Faturado'] - areceber['Total_Recebido']
+                areceber = areceber.sort_values('Total_Faturado', ascending=False).reset_index()
+
+                areceber_df_export = areceber[areceber['Total_Faturado'] > 0]
+                st.dataframe(
+                    areceber_df_export.style.format({
+                        'Horas_Faturadas': '{:.0f}h',
+                        'Total_Faturado': 'R$ {:,.2f}',
+                        'Total_Recebido': 'R$ {:,.2f}',
+                        'Saldo_Pendente': 'R$ {:,.2f}'
+                    }), use_container_width=True, height=400
+                )
+                
+                st.metric("Total Faturado (Contábil)", f"R$ {areceber['Total_Faturado'].sum():,.2f}")
+                st.metric("Total Efetivamente Recebido", f"R$ {areceber['Total_Recebido'].sum():,.2f}",
+                          delta=f"R$ {areceber['Saldo_Pendente'].sum():,.2f} Pendente",
+                          delta_color="inverse" if areceber['Saldo_Pendente'].sum() > 0 else "off")
             except Exception as e:
                 st.warning(f"Erro ao gerar tabela A Receber: {e}")
         else:
@@ -1090,9 +1199,19 @@ with tab2:
     
     try:
         excel_data = to_excel(areceber_df_export, apagar_df_export)
-        st.download_button(label="📥 Exportar Fechamento para Excel", data=excel_data, file_name=f"Fechamento_Maestro_{mes_sel}_{ano_sel}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True)
+        st.download_button(
+            label="📥 Exportar Fechamento para Excel",
+            data=excel_data,
+            file_name=f"Fechamento_Maestro_{mes_sel}_{ano_sel}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True
+        )
     except Exception as e:
         st.warning(f"Erro ao gerar arquivo Excel: {e}")
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 3: FLUXO DE CAIXA
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab3:
     st.markdown(f"## 💵 Fluxo de Caixa vs. Contábil - {mes_sel}/{ano_sel}")
@@ -1103,22 +1222,36 @@ with tab3:
         st.markdown('<div class="metric-card-premium" style="border-left-color: #39FF14;"><h4 style="color: #39FF14;">VISÃO CAIXA</h4>', unsafe_allow_html=True)
         st.metric("💰 Total Recebido", f"R$ {metricas['caixa_recebido']:,.2f}")
         st.metric("💸 Total Pago", f"R$ {metricas['caixa_pago']:,.2f}")
-        st.metric("📊 Resultado Caixa", f"R$ {metricas['lucro_caixa']:,.2f}", delta_color="normal" if metricas['lucro_caixa'] > 0 else "inverse")
+        st.metric("📊 Resultado Caixa", f"R$ {metricas['lucro_caixa']:,.2f}",
+                  delta_color="normal" if metricas['lucro_caixa'] > 0 else "inverse")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_c2:
         st.markdown('<div class="metric-card-premium" style="border-left-color: #00BFFF;"><h4 style="color: #00BFFF;">VISÃO CONTÁBIL</h4>', unsafe_allow_html=True)
         st.metric("💰 Faturamento Contábil", f"R$ {metricas['receita']:,.2f}")
         st.metric("💸 Custo Contábil", f"R$ {metricas['custo']:,.2f}")
-        st.metric("📊 Lucro Contábil", f"R$ {metricas['lucro']:,.2f}", delta_color="normal" if metricas['lucro'] > 0 else "inverse")
+        st.metric("📊 Lucro Contábil", f"R$ {metricas['lucro']:,.2f}",
+                  delta_color="normal" if metricas['lucro'] > 0 else "inverse")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_c3:
         st.markdown('<div class="metric-card-premium" style="border-left-color: #FFD700;"><h4 style="color: #FFD700;">GAPS (Contábil - Caixa)</h4>', unsafe_allow_html=True)
-        st.metric("Gap de Recebimento", f"R$ {metricas['gap_faturamento']:,.2f}", help="Quanto foi faturado mas ainda não recebido")
-        st.metric("Gap de Pagamento", f"R$ {metricas['gap_custo']:,.2f}", help="Quanto foi provisionado de custo mas ainda não pago")
+        st.metric("Gap de Recebimento", f"R$ {metricas['gap_faturamento']:,.2f}",
+                  help="Quanto foi faturado mas ainda não recebido")
+        st.metric("Gap de Pagamento", f"R$ {metricas['gap_custo']:,.2f}",
+                  help="Quanto foi provisionado de custo mas ainda não pago")
         st.metric("Gap de Lucro", f"R$ {metricas['lucro'] - metricas['lucro_caixa']:,.2f}")
         st.markdown("</div>", unsafe_allow_html=True)
+
+    try:
+        ano_sel_int = int(ano_sel) if ano_sel else 0
+        if (ano_sel_int >= 2025 and 
+            metricas.get('caixa_recebido', 0) == 0 and 
+            metricas.get('caixa_pago', 0) == 0 and 
+            metricas.get('receita', 0) > 0):
+            st.error("🚨 ATENÇÃO: Os dados de Caixa para este período estão zerados. A análise de Caixa e Gaps está comprometida. Veja a aba 'Ressonância Prescritiva'.")
+    except (ValueError, TypeError) as e:
+        st.warning(f"⚠️ Erro ao validar dados de caixa: {e}")
 
     st.markdown("---")
     st.markdown("### Evolução Temporal (Caixa vs. Contábil)")
@@ -1129,9 +1262,14 @@ with tab3:
             try:
                 df_full_temp = df_full.dropna(subset=['Data']).copy()
                 
-                contabil_hist = df_full_temp.groupby(pd.Grouper(key='Data', freq='MS')).agg(Receita_Contabil=('Receita', 'sum'), Custo_Contabil=('Custo', 'sum'))
-                caixa_rec_hist = df_full_temp.drop_duplicates(subset=['Data', 'CodCliProj', 'Caixa_Recebido']).groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Recebido'].sum()
-                caixa_pag_hist = df_full_temp.drop_duplicates(subset=['Data', 'ConsultGest', 'Caixa_Pago']).groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Pago'].sum()
+                contabil_hist = df_full_temp.groupby(pd.Grouper(key='Data', freq='MS')).agg(
+                    Receita_Contabil=('Receita', 'sum'),
+                    Custo_Contabil=('Custo', 'sum')
+                )
+                caixa_rec_hist = df_full_temp.drop_duplicates(subset=['Data', 'CodCliProj', 'Caixa_Recebido']) \
+                                            .groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Recebido'].sum()
+                caixa_pag_hist = df_full_temp.drop_duplicates(subset=['Data', 'ConsultGest', 'Caixa_Pago']) \
+                                            .groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Pago'].sum()
                 
                 fluxo_temporal = contabil_hist
                 fluxo_temporal['Receita_Caixa'] = caixa_rec_hist
@@ -1142,45 +1280,91 @@ with tab3:
                 fluxo_temporal['Lucro_Contabil'] = fluxo_temporal['Receita_Contabil'] - fluxo_temporal['Custo_Contabil']
 
                 fig_evolucao = go.Figure()
-                fig_evolucao.add_trace(go.Scatter(x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Contabil'], name='Lucro Contábil', mode='lines+markers', line=dict(color='#00BFFF', width=4)))
-                fig_evolucao.add_trace(go.Scatter(x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Caixa'], name='Lucro Caixa', mode='lines+markers', line=dict(color='#39FF14', width=2, dash='dot')))
-                fig_evolucao.add_trace(go.Bar(x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Contabil'], name='Faturamento Contábil', marker_color='rgba(0,191,255,0.3)'))
-                fig_evolucao.add_trace(go.Bar(x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Caixa'], name='Recebimento Caixa', marker_color='rgba(57,255,20,0.3)'))
-                fig_evolucao.update_layout(title='Evolução Mensal: Lucro (Linhas) vs Receita (Barras)', paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), hovermode='x unified', legend=dict(orientation='h', y=1.1, yanchor='bottom'), height=450, xaxis_title='Período', yaxis_title='Valor (R$)')
+                fig_evolucao.add_trace(go.Scatter(
+                    x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Contabil'],
+                    name='Lucro Contábil', mode='lines+markers', line=dict(color='#00BFFF', width=4)
+                ))
+                fig_evolucao.add_trace(go.Scatter(
+                    x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Caixa'],
+                    name='Lucro Caixa', mode='lines+markers', line=dict(color='#39FF14', width=2, dash='dot')
+                ))
+                fig_evolucao.add_trace(go.Bar(
+                    x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Contabil'],
+                    name='Faturamento Contábil', marker_color='rgba(0,191,255,0.3)',
+                ))
+                fig_evolucao.add_trace(go.Bar(
+                    x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Caixa'],
+                    name='Recebimento Caixa', marker_color='rgba(57,255,20,0.3)',
+                ))
+                fig_evolucao.update_layout(
+                    title='Evolução Mensal: Lucro (Linhas) vs Receita (Barras)',
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'), hovermode='x unified',
+                    legend=dict(orientation='h', y=1.1, yanchor='bottom'),
+                    height=450, xaxis_title='Período', yaxis_title='Valor (R$)'
+                )
                 st.plotly_chart(fig_evolucao, use_container_width=True)
             except Exception as e:
                  st.warning(f"Erro ao gerar gráfico de evolução temporal: {e}")
         else:
             st.warning("Não foi possível gerar gráfico temporal. Verifique coluna 'Data' e se há dados carregados.")
+        # ═══════════════════════════════════════════════════════════════════════════════
+# TAB 4: ANÁLISE PROFUNDA (SANGRIA E OCIOSIDADE)
+# ═══════════════════════════════════════════════════════════════════════════════
 
 with tab4:
     st.markdown(f"## 🔬 Análise Profunda - {mes_sel}/{ano_sel}")
 
     st.markdown("### 🩸 Detecção de Sangria (Projetos Fechados com Overrun)")
-    if not df_filtrado.empty and 'Status_Horas' in df_filtrado.columns:
+    if not df_filtrado.empty:
         try:
-            df_sangria = df_filtrado[df_filtrado['Status_Horas'] == 'SANGRIA']
-            if not df_sangria.empty:
-                df_sangria_view = df_sangria[['Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Sangria_Risco_Absoluto', 'Receita', 'Custo', 'Lucro', 'Margem']].sort_values('Sangria_Risco_Absoluto', ascending=False)
-                st.error(f"Identificados {len(df_sangria_view)} projetos fechados com estouro de horas (sangria). Custo total da sangria: R$ {df_sangria['Sangria_Risco_Absoluto'].sum():,.2f}")
-                st.dataframe(df_sangria_view.style.format({'Hrs_Prev': '{:.0f}h', 'Hrs_Real': '{:.0f}h', 'Desvio_Hrs': '+{:.0f}h', 'Sangria_Risco_Absoluto': 'R$ {:,.2f}', 'Receita': 'R$ {:,.2f}', 'Custo': 'R$ {:,.2f}', 'Lucro': 'R$ {:,.2f}', 'Margem': '{:.1%}'}).background_gradient(cmap='Reds', subset=['Desvio_Hrs', 'Sangria_Risco_Absoluto']).background_gradient(cmap='RdYlGn', subset=['Lucro', 'Margem']))
+            if 'Status_Horas' in df_filtrado.columns:
+                df_sangria = df_filtrado[df_filtrado['Status_Horas'] == 'SANGRIA']
+                if not df_sangria.empty:
+                    df_sangria_view = df_sangria[[
+                        'Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real',
+                        'Desvio_Hrs', 'Sangria_Risco_Absoluto', 'Receita', 'Custo', 'Lucro', 'Margem'
+                    ]].sort_values('Sangria_Risco_Absoluto', ascending=False)
+
+                    st.error(f"Identificados {len(df_sangria_view)} projetos fechados com estouro de horas (sangria). "
+                             f"Custo total da sangria: R$ {df_sangria['Sangria_Risco_Absoluto'].sum():,.2f}")
+                    st.dataframe(df_sangria_view.style.format({
+                        'Hrs_Prev': '{:.0f}h', 'Hrs_Real': '{:.0f}h', 'Desvio_Hrs': '+{:.0f}h',
+                        'Sangria_Risco_Absoluto': 'R$ {:,.2f}', 'Receita': 'R$ {:,.2f}',
+                        'Custo': 'R$ {:,.2f}', 'Lucro': 'R$ {:,.2f}', 'Margem': '{:.1%}'
+                    }).background_gradient(cmap='Reds', subset=['Desvio_Hrs', 'Sangria_Risco_Absoluto'])
+                      .background_gradient(cmap='RdYlGn', subset=['Lucro', 'Margem']))
+                else:
+                    st.success("✅ Nenhum projeto fechado com estouro de horas detectado neste período.")
             else:
-                st.success("✅ Nenhum projeto fechado com estouro de horas detectado neste período.")
+                st.info("ℹ️ Coluna 'Status_Horas' não encontrada nos dados")
         except Exception as e:
             st.warning(f"Erro ao analisar sangria: {e}")
     else:
         st.info("📊 Sem dados disponíveis para análise de sangria")
 
     st.markdown("### 💡 Detecção de Ociosidade (Horas Orçadas Não Utilizadas)")
-    if not df_filtrado.empty and 'Status_Horas' in df_filtrado.columns:
+    if not df_filtrado.empty:
         try:
-            df_ociosidade = df_filtrado[df_filtrado['Status_Horas'] == 'OCIOSIDADE']
-            if not df_ociosidade.empty:
-                df_ociosidade_view = df_ociosidade[['Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real', 'Desvio_Hrs', 'Ociosidade_Risco_Absoluto', 'Receita', 'Custo', 'Lucro', 'Margem']].sort_values('Ociosidade_Risco_Absoluto', ascending=False)
-                st.warning(f"Identificados {len(df_ociosidade_view)} projetos com ociosidade. Lucro potencial perdido: R$ {df_ociosidade['Ociosidade_Risco_Absoluto'].sum():,.2f}")
-                st.dataframe(df_ociosidade_view.style.format({'Hrs_Prev': '{:.0f}h', 'Hrs_Real': '{:.0f}h', 'Desvio_Hrs': '{:.0f}h', 'Ociosidade_Risco_Absoluto': 'R$ {:,.2f}', 'Receita': 'R$ {:,.2f}', 'Custo': 'R$ {:,.2f}', 'Lucro': 'R$ {:,.2f}', 'Margem': '{:.1%}'}).background_gradient(cmap='Blues', subset=['Desvio_Hrs', 'Ociosidade_Risco_Absoluto']))
+            if 'Status_Horas' in df_filtrado.columns:
+                df_ociosidade = df_filtrado[df_filtrado['Status_Horas'] == 'OCIOSIDADE']
+                if not df_ociosidade.empty:
+                    df_ociosidade_view = df_ociosidade[[
+                        'Consultor', 'Cliente', 'Projeto', 'Hrs_Prev', 'Hrs_Real',
+                        'Desvio_Hrs', 'Ociosidade_Risco_Absoluto', 'Receita', 'Custo', 'Lucro', 'Margem'
+                    ]].sort_values('Ociosidade_Risco_Absoluto', ascending=False)
+                    
+                    st.warning(f"Identificados {len(df_ociosidade_view)} projetos com ociosidade. "
+                             f"Lucro potencial perdido: R$ {df_ociosidade['Ociosidade_Risco_Absoluto'].sum():,.2f}")
+                    st.dataframe(df_ociosidade_view.style.format({
+                        'Hrs_Prev': '{:.0f}h', 'Hrs_Real': '{:.0f}h', 'Desvio_Hrs': '{:.0f}h',
+                        'Ociosidade_Risco_Absoluto': 'R$ {:,.2f}', 'Receita': 'R$ {:,.2f}',
+                        'Custo': 'R$ {:,.2f}', 'Lucro': 'R$ {:,.2f}', 'Margem': '{:.1%}'
+                    }).background_gradient(cmap='Blues', subset=['Desvio_Hrs', 'Ociosidade_Risco_Absoluto']))
+                else:
+                    st.success("✅ Nenhum projeto com ociosidade significativa detectada.")
             else:
-                st.success("✅ Nenhum projeto com ociosidade significativa detectada.")
+                st.info("ℹ️ Coluna 'Status_Horas' não encontrada nos dados")
         except Exception as e:
             st.warning(f"Erro ao analisar ociosidade: {e}")
     else:
@@ -1195,8 +1379,15 @@ with tab4:
             
             if len(cols_existentes) > 1:
                 df_corr = df_filtrado[cols_existentes].corr()
-                fig_corr = px.imshow(df_corr, text_auto='.2f', aspect='auto', color_continuous_scale='RdBu_r', zmin=-1, zmax=1)
-                fig_corr.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color='white'), height=500)
+
+                fig_corr = px.imshow(
+                    df_corr, text_auto='.2f', aspect='auto',
+                    color_continuous_scale='RdBu_r', zmin=-1, zmax=1
+                )
+                fig_corr.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='white'), height=500
+                )
                 st.plotly_chart(fig_corr, use_container_width=True)
             else:
                 st.warning("📊 Colunas insuficientes para análise de correlação")
@@ -1205,33 +1396,62 @@ with tab4:
     else:
         st.warning("📊 Dados insuficientes para análise de correlação (mínimo 3 registros)")
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 5: RESSONÂNCIA PRESCRITIVA
+# ═══════════════════════════════════════════════════════════════════════════════
+
 with tab5:
     st.markdown("## 🧠 Ressonância Prescritiva Ativa")
 
     if ia_ativa and prescricoes:
         st.success(f"✅ **CRQ Online** - {len(prescricoes)} prescrições geradas para {mes_sel}/{ano_sel}")
+
+        # Filtro de prioridades
         prioridades = ['TODAS'] + sorted(list(set([p['prioridade'] for p in prescricoes])))
         filtro_prior = st.selectbox("Filtrar por Prioridade", prioridades, key="filtro_prior")
 
-        prescricoes_filtradas = [p for p in prescricoes if filtro_prior == 'TODAS' or p['prioridade'] == filtro_prior]
+        # Aplicar filtro
+        if filtro_prior == 'TODAS':
+            prescricoes_filtradas = prescricoes
+        else:
+            prescricoes_filtradas = [p for p in prescricoes if p['prioridade'] == filtro_prior]
 
         if not prescricoes_filtradas:
             st.info("Nenhuma prescrição encontrada para a prioridade selecionada.")
         else:
             for i, presc in enumerate(prescricoes_filtradas):
-                card_class = {'CRÍTICA': 'alert-premium', 'ALTA': 'insight-premium'}.get(presc['prioridade'], 'success-premium')
-                icone = {'CRÍTICA': '🚨', 'ALTA': '💡'}.get(presc['prioridade'], '✅')
-                cor_prior = {'CRÍTICA': '#FF4500', 'ALTA': '#FFD700', 'MÉDIA': '#00BFFF', 'BAIXA': '#39FF14'}
+                # Definir estilo baseado na prioridade
+                if presc['prioridade'] == 'CRÍTICA':
+                    card_class = 'alert-premium'
+                    icone = '🚨'
+                elif presc['prioridade'] == 'ALTA':
+                    card_class = 'insight-premium'
+                    icone = '💡'
+                else:
+                    card_class = 'success-premium'
+                    icone = '✅'
+                
+                cor_prior = {
+                    'CRÍTICA': '#FF4500', 
+                    'ALTA': '#FFD700', 
+                    'MÉDIA': '#00BFFF', 
+                    'BAIXA': '#39FF14'
+                }
 
                 st.markdown(f"""
                 <div class="{card_class}">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <h3>{icone} {presc['titulo']}</h3>
-                        <span style="background: {cor_prior.get(presc['prioridade'], '#8A8A8A')}20; color: {cor_prior.get(presc['prioridade'], '#8A8A8A')}; border: 1px solid {cor_prior.get(presc['prioridade'], '#8A8A8A')}; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
+                        <span style="background: {cor_prior.get(presc['prioridade'], '#8A8A8A')}20;
+                              color: {cor_prior.get(presc['prioridade'], '#8A8A8A')}; 
+                              border: 1px solid {cor_prior.get(presc['prioridade'], '#8A8A8A')};
+                              padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600;">
                             {presc['prioridade']}
                         </span>
                     </div>
-                    <p style="font-size: 1.1em; font-weight: 600; margin: 10px 0;">📊 <strong>Síntese:</strong> {presc['sintese']}</p>
+                    <p style="font-size: 1.1em; font-weight: 600; margin: 10px 0;">
+                        📊 <strong>Síntese:</strong> {presc['sintese']}
+                    </p>
                     <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; margin: 15px 0;">
                         <p style="margin: 0;"><strong>🔍 Análise Profunda:</strong></p>
                         <p style="margin: 10px 0 0 0; white-space: pre-line;">{presc['analise']}</p>
@@ -1246,6 +1466,8 @@ with tab5:
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                # Barra de progresso da confiança
                 st.progress(presc['confianca'] / 100)
                 st.markdown("<br>", unsafe_allow_html=True)
 
@@ -1254,12 +1476,20 @@ with tab5:
     else:
         st.warning("⚠️ Nenhuma prescrição gerada para os filtros atuais. Ajuste os filtros para análise.")
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# TAB 6: CONSULTOR SOCRÁTICO
+# ═══════════════════════════════════════════════════════════════════════════════
+
 with tab6:
     st.markdown("## 🤔 Consultor Socrático - As Perguntas Que Importam")
     st.markdown("""
     <div class="insight-premium">
         <h3 style="margin-top: 0;">💭 O Método Socrático Aplicado aos Negócios</h3>
-        <p style="font-size: 1.05em; line-height: 1.6;">Este não é um sistema que apenas mostra números. É um <strong>parceiro de sabedoria</strong> que faz as perguntas certas para guiá-lo à descoberta de insights profundos sobre seu negócio, baseado na realidade do período selecionado.</p>
+        <p style="font-size: 1.05em; line-height: 1.6;">
+            Este não é um sistema que apenas mostra números. É um <strong>parceiro de sabedoria</strong>
+            que faz as perguntas certas para guiá-lo à descoberta de insights profundos sobre seu negócio,
+            baseado na realidade do período selecionado.
+        </p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -1272,43 +1502,78 @@ with tab6:
                 perguntas = []
 
         if perguntas:
+            # Filtro por categoria
             categorias = sorted(list(set([p['categoria'] for p in perguntas])))
-            categoria_filtro = st.multiselect("Filtrar por categoria:", ['TODAS'] + categorias, default=['TODAS'], key="filtro_categoria")
+            categoria_filtro = st.multiselect(
+                "Filtrar por categoria:", 
+                ['TODAS'] + categorias, 
+                default=['TODAS'],
+                key="filtro_categoria"
+            )
 
-            perguntas_filtradas = [p for p in perguntas if 'TODAS' in categoria_filtro or not categoria_filtro or p['categoria'] in categoria_filtro]
+            # Aplicar filtro
+            if 'TODAS' in categoria_filtro or not categoria_filtro:
+                perguntas_filtradas = perguntas
+            else:
+                perguntas_filtradas = [p for p in perguntas if p['categoria'] in categoria_filtro]
 
+            # Estatísticas
             st.markdown("---")
             col_stat1, col_stat2, col_stat3 = st.columns(3)
             with col_stat1:
                 st.metric("📊 Total de Perguntas", len(perguntas_filtradas))
             with col_stat2:
-                st.metric("🚨 Críticas", len([p for p in perguntas_filtradas if p['profundidade'] == 'CRÍTICA']))
+                criticas = len([p for p in perguntas_filtradas if p['profundidade'] == 'CRÍTICA'])
+                st.metric("🚨 Críticas", criticas)
             with col_stat3:
-                st.metric("🎯 Estratégicas", len([p for p in perguntas_filtradas if p['profundidade'] == 'ESTRATÉGICA']))
+                estrategicas = len([p for p in perguntas_filtradas if p['profundidade'] == 'ESTRATÉGICA'])
+                st.metric("🎯 Estratégicas", estrategicas)
             st.markdown("---")
 
+            # Exibir perguntas
             if perguntas_filtradas:
                 for i, pergunta in enumerate(perguntas_filtradas, 1):
-                    card_class = {'CRÍTICA': 'alert-premium', 'ESTRATÉGICA': 'insight-premium'}.get(pergunta['profundidade'], 'success-premium')
-                    cor_badge = {'CRÍTICA': '#FF4500', 'ESTRATÉGICA': '#FFD700'}.get(pergunta['profundidade'], '#00BFFF')
+                    # Definir cores baseadas na profundidade
+                    if pergunta['profundidade'] == 'CRÍTICA':
+                        card_class, cor_badge = 'alert-premium', '#FF4500'
+                    elif pergunta['profundidade'] == 'ESTRATÉGICA':
+                        card_class, cor_badge = 'insight-premium', '#FFD700'
+                    else:
+                        card_class, cor_badge = 'success-premium', '#00BFFF'
 
                     st.markdown(f"""
                     <div class="{card_class}">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
                             <span style="font-size: 2em;">{pergunta.get('icone', '❓')}</span>
-                            <span style="background: {cor_badge}30; color: {cor_badge}; padding: 4px 12px; border-radius: 12px; font-size: 0.85em; font-weight: 600; border: 1px solid {cor_badge};">{pergunta.get('categoria', 'GERAL')}</span>
+                            <span style="background: {cor_badge}30; color: {cor_badge}; padding: 4px 12px;
+                                  border-radius: 12px; font-size: 0.85em; font-weight: 600; border: 1px solid {cor_badge};">
+                                {pergunta.get('categoria', 'GERAL')}
+                            </span>
                         </div>
-                        <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px; border-left: 4px solid {cor_badge}; margin: 15px 0;">
-                            <p style="font-size: 1.15em; line-height: 1.7; margin: 0; font-weight: 500;">{pergunta.get('pergunta', 'Erro ao carregar pergunta.')}</p>
+                        <div style="background: rgba(0,0,0,0.3); padding: 20px; border-radius: 12px;
+                                    border-left: 4px solid {cor_badge}; margin: 15px 0;">
+                            <p style="font-size: 1.15em; line-height: 1.7; margin: 0; font-weight: 500;">
+                                {pergunta.get('pergunta', 'Erro ao carregar pergunta.')}
+                            </p>
                         </div>
-                        <div style="background: rgba(0,191,255,0.05); padding: 15px; border-radius: 10px; margin-top: 15px; border-left: 3px solid #00BFFF;">
-                            <p style="margin: 0; font-size: 0.95em; color: #8A8A8A;"><strong style="color: #00BFFF;">📊 Contexto dos Dados:</strong><br>{pergunta.get('contexto', 'N/A')}</p>
+                        <div style="background: rgba(0,191,255,0.05); padding: 15px; border-radius: 10px;
+                                    margin-top: 15px; border-left: 3px solid #00BFFF;">
+                            <p style="margin: 0; font-size: 0.95em; color: #8A8A8A;">
+                                <strong style="color: #00BFFF;">📊 Contexto dos Dados:</strong><br>
+                                {pergunta.get('contexto', 'N/A')}
+                            </p>
                         </div>
                     </div>
                     """, unsafe_allow_html=True)
                     
+                    # Área de reflexão
                     with st.expander(f"💭 Meu espaço de reflexão sobre a pergunta #{i}"):
-                        st.text_area("Suas anotações:", placeholder="Use este espaço para anotar insights, ações ou reflexões sobre esta pergunta...", key=f"reflexao_{i}", height=120)
+                        st.text_area(
+                            "Suas anotações:",
+                            placeholder="Use este espaço para anotar insights, ações ou reflexões sobre esta pergunta...",
+                            key=f"reflexao_{i}",
+                            height=120
+                        )
                     st.markdown("<br>", unsafe_allow_html=True)
             else:
                 st.info("🎯 Nenhuma pergunta gerada com os filtros aplicados. Ajuste os critérios.")
@@ -1324,4 +1589,6 @@ with tab6:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: #8A8A8A; font-size: 0.9em;'>MAESTRO FAROL - Autonomous Insight System © {datetime.now().year}</div>", unsafe_allow_html=True)
+st.markdown(f"<div style='text-align: center; color: #8A8A8A; font-size: 0.9em;'>"
+            f"MAESTRO FAROL - Autonomous Insight System © {datetime.now().year}"
+            f"</div>", unsafe_allow_html=True)
