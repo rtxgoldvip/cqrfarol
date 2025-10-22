@@ -263,6 +263,7 @@ class CoreQuantumReasoning:
         self.df_cp_full = pd.DataFrame()
         self.df_tec_full = pd.DataFrame()
         self.df_cli_full = pd.DataFrame()
+        self.filtros_ativos = {}
 
         if self.conn:
             with st.spinner('🌌 Carregando Universo de Dados do Banco...'):
@@ -304,7 +305,7 @@ class CoreQuantumReasoning:
             st.error("Tabela Fato (Tb_GestorFin2) está vazia.")
             return pd.DataFrame()
         
-        # Armazena cópias das tabelas brutas para uso posterior na aba de Fechamento
+        # Armazena cópias das tabelas brutas para uso posterior
         self.df_cr_full = dfs.get('cr', pd.DataFrame()).copy()
         self.df_cp_full = dfs.get('cp', pd.DataFrame()).copy()
         self.df_tec_full = dfs.get('tec', pd.DataFrame()).copy()
@@ -319,29 +320,6 @@ class CoreQuantumReasoning:
             df_fato = df_fato.dropna(subset=['Ano', 'Mes', 'ConsultGest', 'ProjGest'])
             df_fato['Ano'] = df_fato['Ano'].astype(int)
             df_fato['Mes'] = df_fato['Mes'].astype(int)
-
-            # Preparação do Fluxo de Caixa (apenas com registros quitados)
-            df_cr = self.df_cr_full.copy()
-            if 'quitado' in df_cr.columns:
-                df_cr = df_cr[df_cr['quitado'].astype(str).str.strip().str.upper() == 'S']
-            df_cr['DtRec'] = pd.to_datetime(df_cr['DtRec'], errors='coerce')
-            df_cr = df_cr.dropna(subset=['DtRec'])
-            df_cr['Caixa_Ano'] = df_cr['DtRec'].dt.year
-            df_cr['Caixa_Mes'] = df_cr['DtRec'].dt.month
-            df_cr['Cliente'] = pd.to_numeric(df_cr['Cliente'], errors='coerce')
-            df_cr['VlRec'] = pd.to_numeric(df_cr['VlRec'], errors='coerce').fillna(0)
-            cr_agg = df_cr.groupby(['Caixa_Ano', 'Caixa_Mes', 'Cliente'])['VlRec'].sum().reset_index()
-
-            df_cp = self.df_cp_full.copy()
-            if 'quitado' in df_cp.columns:
-                df_cp = df_cp[df_cp['quitado'].astype(str).str.strip().str.upper() == 'S']
-            df_cp['DtPagamento'] = pd.to_datetime(df_cp['DtPagamento'], errors='coerce')
-            df_cp = df_cp.dropna(subset=['DtPagamento'])
-            df_cp['Caixa_Ano'] = df_cp['DtPagamento'].dt.year
-            df_cp['Caixa_Mes'] = df_cp['DtPagamento'].dt.month
-            df_cp['Prestador'] = pd.to_numeric(df_cp['Prestador'], errors='coerce')
-            df_cp['VlPago'] = pd.to_numeric(df_cp['VlPago'], errors='coerce').fillna(0)
-            cp_agg = df_cp.groupby(['Caixa_Ano', 'Caixa_Mes', 'Prestador'])['VlPago'].sum().reset_index()
 
         except Exception as e:
             st.error(f"Erro na preparação dos dados: {e}")
@@ -398,26 +376,6 @@ class CoreQuantumReasoning:
             df['Data'] = pd.to_datetime(df['Ano'].astype(str) + '-' + df['Mes'].astype(str) + '-01', errors='coerce')
             df = df.dropna(subset=['Data'])
 
-        # Entrelaçamento de Caixa
-        with st.spinner("Entrelaçando dados de Fluxo de Caixa..."):
-            df = pd.merge(df, cr_agg, 
-                          left_on=['Ano', 'Mes', 'CodCliProj'], 
-                          right_on=['Caixa_Ano', 'Caixa_Mes', 'Cliente'], 
-                          how='left', suffixes=('', '_cr'))
-            
-            df = pd.merge(df, cp_agg, 
-                          left_on=['Ano', 'Mes', 'ConsultGest'], 
-                          right_on=['Caixa_Ano', 'Caixa_Mes', 'Prestador'], 
-                          how='left', suffixes=('', '_cp'))
-
-            df = df.rename(columns={'VlRec': 'Caixa_Recebido', 'VlPago': 'Caixa_Pago'})
-            df['Caixa_Recebido'] = df['Caixa_Recebido'].fillna(0)
-            df['Caixa_Pago'] = df['Caixa_Pago'].fillna(0)
-            
-            df['Lucro_Caixa'] = df['Caixa_Recebido'] - df['Caixa_Pago']
-            df['Gap_Faturamento'] = df['Receita'] - df['Caixa_Recebido']
-            df['Gap_Custo'] = df['Custo'] - df['Caixa_Pago']
-
         # Dimensões Quânticas
         with st.spinner("Criando dimensões quânticas..."):
             df = df.reset_index(drop=True)
@@ -473,6 +431,7 @@ class CoreQuantumReasoning:
             self.estado_quantum = pd.DataFrame()
             return self.estado_quantum
 
+        self.filtros_ativos = filtros
         df = self.dados_universo.copy()
 
         try:
@@ -506,50 +465,52 @@ class CoreQuantumReasoning:
 
     def atualizar_assinatura_historica(self, ano_sel, mes_sel):
         try:
-            if not isinstance(ano_sel, (int, float)) or not isinstance(mes_sel, (int, float)):
-                self.assinatura_historica = {}
-                return
-
             data_filtro = pd.to_datetime(f'{int(ano_sel)}-{int(mes_sel)}-01', errors='coerce')
             if pd.isna(data_filtro):
                 self.assinatura_historica = {}
                 return
 
-            df_hist = self.dados_universo[self.dados_universo['Data'] < data_filtro]
-
-            if df_hist.empty:
+            # Histórico Contábil
+            df_hist_contabil = self.dados_universo[self.dados_universo['Data'] < data_filtro]
+            if df_hist_contabil.empty:
                 self.assinatura_historica = {}
                 return
-
-            hist_contabil = df_hist.groupby(['Ano', 'Mes']).agg(
+            hist_contabil_agg = df_hist_contabil.groupby(pd.Grouper(key='Data', freq='MS')).agg(
                 Receita=('Receita', 'sum'),
                 Custo=('Custo', 'sum'),
                 Hrs_Real=('Hrs_Real', 'sum'),
                 Hrs_Prev=('Hrs_Prev', 'sum')
-            ).reset_index()
-            
-            hist_caixa_rec = df_hist.drop_duplicates(subset=['Ano', 'Mes', 'CodCliProj', 'Caixa_Recebido']).groupby(['Ano', 'Mes'])['Caixa_Recebido'].sum()
-            hist_caixa_pag = df_hist.drop_duplicates(subset=['Ano', 'Mes', 'ConsultGest', 'Caixa_Pago']).groupby(['Ano', 'Mes'])['Caixa_Pago'].sum()
+            )
 
-            hist_contabil = hist_contabil.set_index(['Ano', 'Mes'])
-            hist_contabil['Caixa_Recebido'] = hist_caixa_rec
-            hist_contabil['Caixa_Pago'] = hist_caixa_pag
-            hist_contabil = hist_contabil.reset_index().fillna(0)
+            # Histórico Caixa Recebido
+            df_cr_hist = self.df_cr_full.copy()
+            df_cr_hist['DtRec'] = pd.to_datetime(df_cr_hist['DtRec'], errors='coerce')
+            df_cr_hist = df_cr_hist[df_cr_hist['DtRec'] < data_filtro]
+            hist_caixa_rec = df_cr_hist.groupby(pd.Grouper(key='DtRec', freq='MS'))['VlRec'].sum().rename('Caixa_Recebido')
+
+            # Histórico Caixa Pago
+            df_cp_hist = self.df_cp_full.copy()
+            df_cp_hist['DtPagamento'] = pd.to_datetime(df_cp_hist['DtPagamento'], errors='coerce')
+            df_cp_hist = df_cp_hist[df_cp_hist['DtPagamento'] < data_filtro]
+            hist_caixa_pag = df_cp_hist.groupby(pd.Grouper(key='DtPagamento', freq='MS'))['VlPago'].sum().rename('Caixa_Pago')
             
-            hist_contabil['Lucro'] = hist_contabil['Receita'] - hist_contabil['Custo']
-            hist_contabil['Margem'] = np.where(hist_contabil['Receita'] > 0, hist_contabil['Lucro'] / hist_contabil['Receita'], 0)
-            hist_contabil['Lucro_Caixa'] = hist_contabil['Caixa_Recebido'] - hist_contabil['Caixa_Pago']
-            hist_contabil['ROI_Hora'] = np.where(hist_contabil['Hrs_Real'] > 0, hist_contabil['Lucro'] / hist_contabil['Hrs_Real'], 0)
-            hist_contabil['Eficiencia'] = np.where(hist_contabil['Hrs_Prev'] > 0, hist_contabil['Hrs_Real'] / hist_contabil['Hrs_Prev'], 1)
+            # Unir dados históricos
+            hist_merged = pd.concat([hist_contabil_agg, hist_caixa_rec, hist_caixa_pag], axis=1).fillna(0)
+            
+            hist_merged['Lucro'] = hist_merged['Receita'] - hist_merged['Custo']
+            hist_merged['Margem'] = np.where(hist_merged['Receita'] > 0, hist_merged['Lucro'] / hist_merged['Receita'], 0)
+            hist_merged['Lucro_Caixa'] = hist_merged['Caixa_Recebido'] - hist_merged['Caixa_Pago']
+            hist_merged['ROI_Hora'] = np.where(hist_merged['Hrs_Real'] > 0, hist_merged['Lucro'] / hist_merged['Hrs_Real'], 0)
+            hist_merged['Eficiencia'] = np.where(hist_merged['Hrs_Prev'] > 0, hist_merged['Hrs_Real'] / hist_merged['Hrs_Prev'], 1)
 
             self.assinatura_historica = {
-                'receita_avg': hist_contabil['Receita'].mean(),
-                'lucro_avg': hist_contabil['Lucro'].mean(),
-                'margem_avg': hist_contabil['Margem'].mean(),
-                'lucro_caixa_avg': hist_contabil['Lucro_Caixa'].mean(),
-                'roi_hora_avg': hist_contabil['ROI_Hora'].mean(),
-                'eficiencia_avg': hist_contabil['Eficiencia'].mean(),
-                'count_months': len(hist_contabil)
+                'receita_avg': hist_merged['Receita'].mean(),
+                'lucro_avg': hist_merged['Lucro'].mean(),
+                'margem_avg': hist_merged['Margem'].mean(),
+                'lucro_caixa_avg': hist_merged['Lucro_Caixa'].mean(),
+                'roi_hora_avg': hist_merged['ROI_Hora'].mean(),
+                'eficiencia_avg': hist_merged['Eficiencia'].mean(),
+                'count_months': len(hist_merged)
             }
             
         except Exception as e:
@@ -734,58 +695,70 @@ class CoreQuantumReasoning:
         return prescricoes
 
     def calcular_metricas_consolidadas(self):
-        df = self.estado_quantum
+        df_contabil = self.estado_quantum
+        filtros = self.filtros_ativos
 
-        if df.empty:
-            return {
-                'receita': 0, 'custo': 0, 'lucro': 0, 'margem': 0,
-                'hrs_real': 0, 'hrs_prev': 0, 'eficiencia': 0,
-                'roi_hora': 0, 'consultores': 0, 'clientes': 0,
-                'projetos': 0, 'score': 0,
-                'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
-                'gap_faturamento': 0, 'gap_custo': 0
-            }
-
-        try:
-            receita_total = df['Receita'].sum()
-            custo_total = df['Custo'].sum()
-            lucro_total = df['Lucro'].sum()
-            
-            df_rec_unicos = df.drop_duplicates(subset=['Ano', 'Mes', 'CodCliProj', 'Caixa_Recebido'])
-            caixa_recebido_total = df_rec_unicos['Caixa_Recebido'].sum()
-
-            df_pag_unicos = df.drop_duplicates(subset=['Ano', 'Mes', 'ConsultGest', 'Caixa_Pago'])
-            caixa_pago_total = df_pag_unicos['Caixa_Pago'].sum()
-
-            return {
-                'receita': receita_total,
-                'custo': custo_total,
-                'lucro': lucro_total,
-                'margem': (lucro_total / receita_total) if receita_total > 0 else 0,
-                'hrs_real': df['Hrs_Real'].sum(),
-                'hrs_prev': df['Hrs_Prev'].sum(),
-                'eficiencia': df['Eficiencia'].mean() if not df.empty else 0,
-                'roi_hora': df['ROI_Hora'].mean() if not df.empty else 0,
-                'consultores': df['Consultor'].nunique(),
-                'clientes': df['Cliente'].nunique(),
-                'projetos': df['Projeto'].nunique(),
-                'score': df['Score_Performance'].mean() if not df.empty else 0,
-                'caixa_recebido': caixa_recebido_total,
-                'caixa_pago': caixa_pago_total,
-                'lucro_caixa': caixa_recebido_total - caixa_pago_total,
-                'gap_faturamento': receita_total - caixa_recebido_total,
-                'gap_custo': custo_total - caixa_pago_total
-            }
-        except Exception as e:
-            st.error(f"Erro ao calcular métricas consolidadas: {e}")
-            return {
-                'receita': 0, 'custo': 0, 'lucro': 0, 'margem': 0,
-                'hrs_real': 0, 'hrs_prev': 0, 'eficiencia': 0,
-                'roi_hora': 0, 'consultores': 0, 'clientes': 0,
-                'projetos': 0, 'score': 0,
-                'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
-                'gap_faturamento': 0, 'gap_custo': 0
+        metrics = {
+            'receita': 0, 'custo': 0, 'lucro': 0, 'margem': 0,
+            'hrs_real': 0, 'hrs_prev': 0, 'eficiencia': 0,
+            'roi_hora': 0, 'consultores': 0, 'clientes': 0,
+            'projetos': 0, 'score': 0,
+            'caixa_recebido': 0, 'caixa_pago': 0, 'lucro_caixa': 0,
+            'gap_faturamento': 0, 'gap_custo': 0
         }
+
+        # Métricas Contábeis
+        if not df_contabil.empty:
+            metrics['receita'] = df_contabil['Receita'].sum()
+            metrics['custo'] = df_contabil['Custo'].sum()
+            metrics['lucro'] = df_contabil['Lucro'].sum()
+            metrics['margem'] = (metrics['lucro'] / metrics['receita']) if metrics['receita'] > 0 else 0
+            metrics['hrs_real'] = df_contabil['Hrs_Real'].sum()
+            metrics['hrs_prev'] = df_contabil['Hrs_Prev'].sum()
+            metrics['eficiencia'] = df_contabil['Eficiencia'].mean()
+            metrics['roi_hora'] = df_contabil['ROI_Hora'].mean()
+            metrics['consultores'] = df_contabil['Consultor'].nunique()
+            metrics['clientes'] = df_contabil['Cliente'].nunique()
+            metrics['projetos'] = df_contabil['Projeto'].nunique()
+            metrics['score'] = df_contabil['Score_Performance'].mean()
+
+        # Métricas de Caixa
+        try:
+            mes_sel = int(filtros.get('mes', 0))
+            ano_sel = int(filtros.get('ano', 0))
+
+            if mes_sel > 0 and ano_sel > 0:
+                # Caixa Recebido
+                df_cr = self.df_cr_full.copy()
+                df_cr['DtRec'] = pd.to_datetime(df_cr['DtRec'], errors='coerce')
+                date_filter_rec = (df_cr['DtRec'].dt.month == mes_sel) & (df_cr['DtRec'].dt.year == ano_sel)
+                if 'quitado' in df_cr.columns:
+                    quitado_filter_rec = df_cr['quitado'].astype(str).str.strip().str.upper() == 'S'
+                    recebimentos_mes = df_cr[date_filter_rec & quitado_filter_rec]
+                else:
+                    recebimentos_mes = df_cr[date_filter_rec]
+                metrics['caixa_recebido'] = pd.to_numeric(recebimentos_mes['VlRec'], errors='coerce').sum()
+
+                # Caixa Pago
+                df_cp = self.df_cp_full.copy()
+                df_cp['DtPagamento'] = pd.to_datetime(df_cp['DtPagamento'], errors='coerce')
+                date_filter_pag = (df_cp['DtPagamento'].dt.month == mes_sel) & (df_cp['DtPagamento'].dt.year == ano_sel)
+                if 'quitado' in df_cp.columns:
+                    quitado_filter_pag = df_cp['quitado'].astype(str).str.strip().str.upper() == 'S'
+                    pagamentos_mes = df_cp[date_filter_pag & quitado_filter_pag]
+                else:
+                    pagamentos_mes = df_cp[date_filter_pag]
+                metrics['caixa_pago'] = pd.to_numeric(pagamentos_mes['VlPago'], errors='coerce').sum()
+
+            metrics['lucro_caixa'] = metrics['caixa_recebido'] - metrics['caixa_pago']
+            metrics['gap_faturamento'] = metrics['receita'] - metrics['caixa_recebido']
+            metrics['gap_custo'] = metrics['custo'] - metrics['caixa_pago']
+
+        except Exception as e:
+            st.warning(f"Erro ao calcular métricas de caixa: {e}")
+
+        return metrics
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MOTOR DE PERGUNTAS SOCRÁTICAS (O CONSELHEIRO DIGITAL)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1010,8 +983,8 @@ with st.sidebar:
     df_filtrado = crq.aplicar_colapso_quantico(filtros)
 
     crq.detectar_entrelacements()
-    prescricoes = crq.gerar_prescricoes_quantum() if ia_ativa else []
     metricas = crq.calcular_metricas_consolidadas()
+    prescricoes = crq.gerar_prescricoes_quantum() if ia_ativa else []
 
     st.markdown("### 📊 Status Quantum")
     st.metric("Registros Ativos", len(df_filtrado))
@@ -1054,7 +1027,7 @@ with tab1:
         st.metric("📊 Lucro Contábil", format_brl(metricas['lucro'], 0))
     with col3:
         margem_display = metricas['margem'] * 100
-        st.metric("📈 Margem Média", f"{margem_display:.1f}%".replace(".", ","),
+        st.metric("📈 Margem Média", f"{margem_display:.1f}%" .replace(".", ","),
             delta_color="normal" if margem_display > 40 else "inverse")
     with col4:
         st.metric("⏱️ Horas Realizadas", f"{metricas['hrs_real']:.0f}h",
@@ -1338,57 +1311,60 @@ with tab3:
     st.markdown("### Evolução Temporal (Caixa vs. Contábil)")
 
     with st.spinner("Calculando evolução temporal..."):
-        df_full = crq.dados_universo
-        if not df_full.empty and 'Data' in df_full.columns and not df_full['Data'].isnull().all():
-            try:
-                df_full_temp = df_full.dropna(subset=['Data']).copy()
-                
-                contabil_hist = df_full_temp.groupby(pd.Grouper(key='Data', freq='MS')).agg(
-                    Receita_Contabil=('Receita', 'sum'),
-                    Custo_Contabil=('Custo', 'sum')
-                )
-                caixa_rec_hist = df_full_temp.drop_duplicates(subset=['Data', 'CodCliProj', 'Caixa_Recebido']) \
-                                            .groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Recebido'].sum()
-                caixa_pag_hist = df_full_temp.drop_duplicates(subset=['Data', 'ConsultGest', 'Caixa_Pago']) \
-                                            .groupby(pd.Grouper(key='Data', freq='MS'))['Caixa_Pago'].sum()
-                
-                fluxo_temporal = contabil_hist
-                fluxo_temporal['Receita_Caixa'] = caixa_rec_hist
-                fluxo_temporal['Custo_Caixa'] = caixa_pag_hist
-                fluxo_temporal = fluxo_temporal.fillna(0).reset_index()
+        try:
+            # Visão Contábil Histórica
+            contabil_hist = crq.dados_universo.groupby(pd.Grouper(key='Data', freq='MS')).agg(
+                Receita_Contabil=('Receita', 'sum'),
+                Custo_Contabil=('Custo', 'sum')
+            ).reset_index()
 
-                fluxo_temporal['Lucro_Caixa'] = fluxo_temporal['Receita_Caixa'] - fluxo_temporal['Custo_Caixa']
-                fluxo_temporal['Lucro_Contabil'] = fluxo_temporal['Receita_Contabil'] - fluxo_temporal['Custo_Contabil']
+            # Visão Caixa Recebido Histórica
+            cr_hist = crq.df_cr_full.copy()
+            cr_hist['DtRec'] = pd.to_datetime(cr_hist['DtRec'], errors='coerce')
+            caixa_rec_hist = cr_hist.groupby(pd.Grouper(key='DtRec', freq='MS'))['VlRec'].sum().reset_index()
+            caixa_rec_hist = caixa_rec_hist.rename(columns={'DtRec': 'Data', 'VlRec': 'Receita_Caixa'})
+            
+            # Visão Caixa Pago Histórica
+            cp_hist = crq.df_cp_full.copy()
+            cp_hist['DtPagamento'] = pd.to_datetime(cp_hist['DtPagamento'], errors='coerce')
+            caixa_pag_hist = cp_hist.groupby(pd.Grouper(key='DtPagamento', freq='MS'))['VlPago'].sum().reset_index()
+            caixa_pag_hist = caixa_pag_hist.rename(columns={'DtPagamento': 'Data', 'VlPago': 'Custo_Caixa'})
+            
+            # Unir as visões
+            fluxo_temporal = pd.merge(contabil_hist, caixa_rec_hist, on='Data', how='outer')
+            fluxo_temporal = pd.merge(fluxo_temporal, caixa_pag_hist, on='Data', how='outer')
+            fluxo_temporal = fluxo_temporal.fillna(0).sort_values('Data')
 
-                fig_evolucao = go.Figure()
-                fig_evolucao.add_trace(go.Scatter(
-                    x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Contabil'],
-                    name='Lucro Contábil', mode='lines+markers', line=dict(color='#00BFFF', width=4)
-                ))
-                fig_evolucao.add_trace(go.Scatter(
-                    x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Caixa'],
-                    name='Lucro Caixa', mode='lines+markers', line=dict(color='#39FF14', width=2, dash='dot')
-                ))
-                fig_evolucao.add_trace(go.Bar(
-                    x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Contabil'],
-                    name='Faturamento Contábil', marker_color='rgba(0,191,255,0.3)',
-                ))
-                fig_evolucao.add_trace(go.Bar(
-                    x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Caixa'],
-                    name='Recebimento Caixa', marker_color='rgba(57,255,20,0.3)',
-                ))
-                fig_evolucao.update_layout(
-                    title='Evolução Mensal: Lucro (Linhas) vs Receita (Barras)',
-                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='white'), hovermode='x unified',
-                    legend=dict(orientation='h', y=1.1, yanchor='bottom'),
-                    height=450, xaxis_title='Período', yaxis_title='Valor (R$)'
-                )
-                st.plotly_chart(fig_evolucao, use_container_width=True)
-            except Exception as e:
-                 st.warning(f"Erro ao gerar gráfico de evolução temporal: {e}")
-        else:
-            st.warning("Não foi possível gerar gráfico temporal. Verifique coluna 'Data' e se há dados carregados.")
+            fluxo_temporal['Lucro_Caixa'] = fluxo_temporal['Receita_Caixa'] - fluxo_temporal['Custo_Caixa']
+            fluxo_temporal['Lucro_Contabil'] = fluxo_temporal['Receita_Contabil'] - fluxo_temporal['Custo_Contabil']
+
+            fig_evolucao = go.Figure()
+            fig_evolucao.add_trace(go.Scatter(
+                x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Contabil'],
+                name='Lucro Contábil', mode='lines+markers', line=dict(color='#00BFFF', width=4)
+            ))
+            fig_evolucao.add_trace(go.Scatter(
+                x=fluxo_temporal['Data'], y=fluxo_temporal['Lucro_Caixa'],
+                name='Lucro Caixa', mode='lines+markers', line=dict(color='#39FF14', width=2, dash='dot')
+            ))
+            fig_evolucao.add_trace(go.Bar(
+                x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Contabil'],
+                name='Faturamento Contábil', marker_color='rgba(0,191,255,0.3)',
+            ))
+            fig_evolucao.add_trace(go.Bar(
+                x=fluxo_temporal['Data'], y=fluxo_temporal['Receita_Caixa'],
+                name='Recebimento Caixa', marker_color='rgba(57,255,20,0.3)',
+            ))
+            fig_evolucao.update_layout(
+                title='Evolução Mensal: Lucro (Linhas) vs Receita (Barras)',
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='white'), hovermode='x unified',
+                legend=dict(orientation='h', y=1.1, yanchor='bottom'),
+                height=450, xaxis_title='Período', yaxis_title='Valor (R$)'
+            )
+            st.plotly_chart(fig_evolucao, use_container_width=True)
+        except Exception as e:
+                st.warning(f"Erro ao gerar gráfico de evolução temporal: {e}")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TAB 4: ANÁLISE PROFUNDA (SANGRIA E OCIOSIDADE)
