@@ -1,3 +1,6 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# IMPORTS NECESSÁRIOS
+# ═══════════════════════════════════════════════════════════════════════════════
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -207,7 +210,6 @@ def init_connection():
         DB_USERNAME = st.secrets["db_credentials"]["username"]
         DB_PASSWORD = st.secrets["db_credentials"]["password"]
 
-        # CORREÇÃO: Removido o texto "_EXCLAMATION_" que invalidava a string de conexão.
         conn_str = (
             f"DRIVER={{ODBC Driver 17 for SQL Server}};"
             f"SERVER={DB_SERVER};"
@@ -341,10 +343,12 @@ class CoreQuantumReasoning:
 
         # Mapeamento e Métricas
         with st.spinner("Mapeando colunas e criando métricas..."):
-            # CORREÇÃO: Previne a criação de colunas duplicadas 'TipoProj', que causava o erro.
-            # A coluna numérica original é descartada antes de renomear a coluna de descrição.
+            # CORREÇÃO: Resolve a colisão de nomes de colunas que causa o erro.
+            # A coluna 'TipoProj' (usada como chave de junção, um ID numérico) entra em conflito
+            # com a coluna 'DescTipo' quando esta é renomeada para 'TipoProj'.
+            # Renomeamos a coluna de ID para 'TipoProj_ID' para preservar o dado e evitar o conflito.
             if 'TipoProj' in df.columns and 'DescTipo' in df.columns:
-                df = df.drop(columns='TipoProj')
+                df = df.rename(columns={'TipoProj': 'TipoProj_ID'})
 
             mapa_colunas = {
                 'QtHrReal': 'Hrs_Real', 'QtHrOrc': 'Hrs_Prev', 'ReceitaReal': 'Receita',
@@ -398,8 +402,8 @@ class CoreQuantumReasoning:
 
         # Dimensões Quânticas
         with st.spinner("Criando dimensões quânticas..."):
-            # MELHORIA: Resetar o índice para garantir um alinhamento limpo e prevenir erros
-            # em operações booleanas, como o que foi reportado no traceback.
+            # A tentativa de correção anterior com reset_index não resolve o problema de colunas duplicadas.
+            # Mantemos a linha pois pode ser uma guarda contra outros problemas de índice, mas a correção real foi feita acima.
             df = df.reset_index(drop=True)
             
             df['Sangria_Risco_Absoluto'] = np.where(
