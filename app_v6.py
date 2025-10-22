@@ -395,7 +395,7 @@ class CoreQuantumReasoning:
 
         # Dimensões Quânticas - CORREÇÃO APLICADA AQUI
         with st.spinner("Criando dimensões quânticas..."):
-            # CORREÇÃO: Resetar o índice para evitar problemas de alinhamento
+            # CORREÇÃO: Resetar o índice para evitar problemas de alinhamento em operações booleanas
             df = df.reset_index(drop=True)
             
             df['Sangria_Risco_Absoluto'] = np.where(
@@ -407,7 +407,6 @@ class CoreQuantumReasoning:
                 (df['Hrs_Prev'] - df['Hrs_Real']) * (df['VH_Venda'] - df['VH_Custo']), 0
             )
 
-            # CORREÇÃO: Usar np.select em vez de loc para evitar problemas de índice
             conditions = [
                 (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'PROJETO FECHADO'),
                 (df['Hrs_Real'] > df['Hrs_Prev']) & (df['TipoProj'] == 'FATURADO POR HRS REALIZADAS'),
@@ -594,9 +593,9 @@ class CoreQuantumReasoning:
         if df.empty:
             return [{
                 'tipo': 'INFO', 'prioridade': 'BAIXA', 'titulo': '📊 Aguardando Dados',
-                'sintese': 'Selecione filtros para iniciar a ressonância prescritiva',
-                'analise': 'O CRQ precisa de dados para processar',
-                'prescricao': 'Ajuste os filtros na sidebar',
+                'sintese': 'Selecione filtros para iniciar a ressonância prescritiva.',
+                'analise': 'O CRQ precisa de um conjunto de dados definido para processar e gerar insights.',
+                'prescricao': 'Utilize os filtros na barra lateral para focar a análise em um período ou segmento específico.',
                 'impacto_estimado': 'N/A', 'confianca': 0
             }]
 
@@ -616,11 +615,13 @@ class CoreQuantumReasoning:
             if gap_relativo > 0.7:
                 prescricoes.append({
                     'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
-                    'titulo': '🚨 ALERTA DE INTEGRIDADE: Descolamento Crítico de Caixa',
-                    'sintese': f"Lucro Contábil de R$ {metricas['lucro']:,.0f} vs. Lucro de Caixa de R$ {metricas['lucro_caixa']:,.0f}.",
-                    'analise': f"O sistema detectou um 'descolamento' (gap) de R$ {gap_lucro:,.0f} entre a visão contábil e a visão de caixa.",
-                    'prescricao': """1. VALIDAR URGENTEMENTE o processo de lançamento de caixa.""",
-                    'impacto_estimado': 'PERDA TOTAL da visão de Caixa.',
+                    'titulo': '🚨 ALERTA DE INTEGRIDADE: Descolamento Crítico entre Contábil e Caixa',
+                    'sintese': f"Lucro Contábil de R$ {metricas['lucro']:,.0f} vs. Resultado de Caixa de R$ {metricas['lucro_caixa']:,.0f}.",
+                    'analise': f"Um 'descolamento' de R$ {gap_lucro:,.0f} foi detectado. Isso significa que, embora a empresa seja lucrativa 'no papel', o caixa correspondente não está se materializando no banco. As causas podem variar desde inadimplência, prazos de recebimento muito longos, até falhas sistêmicas no registro de recebimentos.",
+                    'prescricao': """1. **Auditoria Imediata:** Compare os extratos bancários com os lançamentos de recebimento no sistema para o período.
+2. **Análise de Inadimplência:** Verifique os maiores saldos pendentes na aba 'Fechamento'.
+3. **Revisão de Prazos:** Avalie se os prazos de pagamento concedidos aos clientes são sustentáveis para o fluxo de caixa.""",
+                    'impacto_estimado': 'Risco à saúde financeira e à tomada de decisão.',
                     'confianca': 100
                 })
 
@@ -632,22 +633,24 @@ class CoreQuantumReasoning:
                 if custo_valido and sangria_total > (metricas['custo'] * 0.1):
                     prescricoes.append({
                         'tipo': 'ALERTA', 'prioridade': 'CRÍTICA',
-                        'titulo': '🩸 SANGRIA DETECTADA em Projetos Fechados',
-                        'sintese': f"R$ {sangria_total:,.0f} de custo adicional em projetos de escopo fechado.",
-                        'analise': f"Detectamos {len(df[df['Status_Horas'] == 'SANGRIA'])} projetos fechados que consumiram mais horas que o orçado.",
-                        'prescricao': """1. AUDITAR IMEDIATAMENTE os projetos listados na "Análise Profunda > Sangria".""",
-                        'impacto_estimado': f'Recuperação de R$ {sangria_total:,.0f} em margem futura.',
+                        'titulo': '🩸 SANGRIA DE MARGEM DETECTADA em Projetos Fechados',
+                        'sintese': f"R$ {sangria_total:,.0f} de custo irrecuperável em projetos de escopo fechado.",
+                        'analise': f"Detectamos {len(df[df['Status_Horas'] == 'SANGRIA'])} projetos que consumiram mais horas que o orçado. Este valor representa um custo que corrói diretamente a margem de lucro, pois não gera receita adicional.",
+                        'prescricao': """1. **Análise Causa-Raiz:** Conduza uma revisão post-mortem nos 3 projetos mais críticos (ver 'Análise Profunda') para entender o motivo do desvio (escopo, estimativa, execução).
+2. **Ação Corretiva:** Implemente os aprendizados no processo de vendas e orçamentação para evitar recorrências.""",
+                        'impacto_estimado': f'Recuperação de até R$ {sangria_total:,.0f} em margem em projetos futuros.',
                         'confianca': 95
                     })
 
                 if lucro_valido and ociosidade_total > (metricas['lucro'] * 0.15):
                     prescricoes.append({
                         'tipo': 'OPORTUNIDADE', 'prioridade': 'ALTA',
-                        'titulo': '🎯 Oportunidade Oculta (Capacidade Ociosa)',
-                        'sintese': f"R$ {ociosidade_total:,.0f} de lucro potencial perdido.",
-                        'analise': f"Identificamos {len(df[df['Status_Horas'] == 'OCIOSIDADE'])} projetos que consumiram menos horas que o previsto.",
-                        'prescricao': """1. Verificar se o faturamento desses projetos foi completo.""",
-                        'impacto_estimado': f'R$ {ociosidade_total:,.0f} de receita/lucro adicional.',
+                        'titulo': '🎯 Oportunidade Oculta: Lucro Deixado na Mesa',
+                        'sintese': f"R$ {ociosidade_total:,.0f} de lucro potencial não realizado por capacidade ociosa.",
+                        'analise': f"Identificamos {len(df[df['Status_Horas'] == 'OCIOSIDADE'])} projetos que consumiram menos horas que o previsto. Isso pode indicar alta eficiência, mas também pode ser um sinal de capacidade não vendida ou faturamento incompleto.",
+                        'prescricao': """1. **Verificar Faturamento:** Confirme se o valor total do contrato foi faturado, mesmo com menos horas.
+2. **Alavancar Eficiência:** Se a eficiência for real, use esses dados para justificar novos projetos ou para realocar a capacidade economizada em novas oportunidades de receita.""",
+                        'impacto_estimado': f'Até R$ {ociosidade_total:,.0f} de receita/lucro adicional capturável.',
                         'confianca': 88
                     })
                     
@@ -673,10 +676,11 @@ class CoreQuantumReasoning:
                         prescricoes.append({
                             'tipo': 'ALERTA', 'prioridade': 'ALTA',
                             'titulo': '📉 Anomalia de Rentabilidade Detectada',
-                            'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da média histórica.",
-                            'analise': f"A assinatura histórica mostra uma margem média de {margem_hist*100:.1f}%.",
-                            'prescricao': """1. Analisar os piores projetos na Tab 1.""",
-                            'impacto_estimado': f'Recuperação para a média de {margem_hist*100:.1f}% de margem.',
+                            'sintese': f"Margem de {margem_atual*100:.1f}% neste período, {abs(delta_margem*100):.0f}% abaixo da sua 'assinatura histórica'.",
+                            'analise': f"A sua performance histórica consolidada indica uma margem média de {margem_hist*100:.1f}%. A queda atual pode ser um evento isolado ou o início de uma tendência preocupante.",
+                            'prescricao': """1. **Analisar Piores Projetos:** Identifique os projetos com as piores margens na 'Visão Executiva' para entender os detratores.
+2. **Analisar Mix de Vendas:** Verifique se houve uma concentração de vendas em projetos de margem naturalmente mais baixa.""",
+                            'impacto_estimado': f'Retorno ao patamar histórico de {margem_hist*100:.1f}% de margem.',
                             'confianca': 92
                         })
                         
@@ -689,10 +693,11 @@ class CoreQuantumReasoning:
                 prescricoes.append({
                     'tipo': 'EFICIENCIA', 'prioridade': 'ALTA',
                     'titulo': '💎 Otimização Estratégica do Mix de Serviços',
-                    'sintese': f"'{info['melhor']}' está gerando {info['gap']*100:.1f} pp a mais de margem que '{info['pior']}'.",
-                    'analise': f"Análise de entrelaçamento mostra assimetria clara no mix de serviços.",
-                    'prescricao': f"""1. Focar esforços comerciais em projetos tipo "{info["melhor"]}".""",
-                    'impacto_estimado': 'Aumento de 5-10% na margem consolidada.',
+                    'sintese': f"Projetos do tipo '{info['melhor']}' estão gerando {info['gap']*100:.1f} pontos percentuais a mais de margem que '{info['pior']}'.",
+                    'analise': f"A análise de entrelaçamento quântico revela uma assimetria clara de rentabilidade no seu portfólio de serviços. Direcionar o foco para o tipo de serviço mais rentável pode alavancar significativamente o resultado consolidado.",
+                    'prescricao': f"""1. **Foco Comercial:** Priorize a prospecção e venda de projetos do tipo '{info["melhor"]}'.
+2. **Revisão de Precificação:** Avalie a estrutura de custos e preços dos projetos '{info["pior"]}' para identificar oportunidades de melhoria.""",
+                    'impacto_estimado': 'Aumento potencial de 5-10% na margem consolidada da empresa.',
                     'confianca': 90
                 })
 
@@ -700,9 +705,10 @@ class CoreQuantumReasoning:
             prescricoes.append({
                 'tipo': 'SUCESSO', 'prioridade': 'BAIXA',
                 'titulo': '✅ Operação em Equilíbrio Quântico',
-                'sintese': 'Nenhuma anomalia crítica detectada no período.',
-                'analise': 'Os indicadores do período estão dentro dos parâmetros esperados.',
-                'prescricao': """1. Manter a estratégia atual.""",
+                'sintese': 'Nenhuma anomalia crítica ou oportunidade de alto impacto foi detectada no período.',
+                'analise': 'Os indicadores-chave de performance para o período selecionado estão alinhados com os parâmetros históricos e as melhores práticas internas. A relação entre contábil e caixa está saudável e a eficiência operacional está dentro do esperado.',
+                'prescricao': """1. **Manter Estratégia:** Continue executando a estratégia atual que está demonstrando resultados sólidos.
+2. **Monitorar Tendências:** Permaneça atento a pequenas variações que possam indicar futuras mudanças no cenário.""",
                 'impacto_estimado': 'Manutenção da performance e crescimento sustentável.',
                 'confianca': 95
             })
@@ -794,7 +800,7 @@ class SocraticQuestioningEngine:
         if abs(gap_lucro) > (metricas['receita'] * 0.5) and metricas['receita'] > 0:
             perguntas.append({
                 'categoria': 'RISCO CRÍTICO',
-                'pergunta': f"Notei um 'descolamento' de R$ {gap_lucro:,.0f} entre seu Lucro Contábil (R$ {metricas['lucro']:,.0f}) e seu Lucro de Caixa (R$ {metricas['lucro_caixa']:,.0f}). "
+                'pergunta': f"Notei um 'descolamento' de R$ {gap_lucro:,.0f} entre seu Lucro Contábil (R$ {metricas['lucro']:,.0f}) e seu Resultado de Caixa (R$ {metricas['lucro_caixa']:,.0f}). "
                            f"Sua operação está gerando faturamento, mas o caixa não está acompanhando. Sabemos se isso é inadimplência, um descasamento de prazo extremo, ou uma falha na forma como os dados de recebimento estão sendo ligados?",
                 'contexto': f"Gap Contábil vs. Caixa: R$ {gap_lucro:,.0f}",
                 'profundidade': 'CRÍTICA',
