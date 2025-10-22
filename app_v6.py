@@ -218,7 +218,7 @@ def init_connection():
         DB_PASSWORD = st.secrets["db_credentials"]["password"]
 
         conn_str = (
-            f"DRIVER={{ODBC Driver 17 for SQL Server}};
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
             f"SERVER={DB_SERVER};"
             f"DATABASE={DB_DATABASE};"
             f"UID={DB_USERNAME};"
